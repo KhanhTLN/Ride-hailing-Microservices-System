@@ -8,7 +8,7 @@ import java.time.Instant;
 public record ApiResponse<T>(
         boolean success,
         int status,
-        T Data,
+        T data,
         String message,
         String errorCode,
         Instant timestamp

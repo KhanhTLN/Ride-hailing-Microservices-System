@@ -3,10 +3,7 @@ package com.threecats.userservice.entity;
 import com.threecats.userservice.enums.AccountStatus;
 import com.threecats.userservice.enums.Role;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -18,7 +15,7 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-
+@Builder
 @Table(name="user")
 public class User {
     @Id
