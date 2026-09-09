@@ -1,6 +1,6 @@
-package com.threecats.userservice.exception;
+package com.threecats.userservice.exception.resource;
 
-import org.springframework.web.servlet.config.annotation.ResourceChainRegistration;
+import com.threecats.userservice.exception.BaseException;
 
 public class ResourceAlreadyExistException extends BaseException {
     public ResourceAlreadyExistException() {

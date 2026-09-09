@@ -1,4 +1,6 @@
-package com.threecats.userservice.exception;
+package com.threecats.userservice.exception.resource;
+
+import com.threecats.userservice.exception.BaseException;
 
 public class ResourceNotFoundException extends BaseException {
 
