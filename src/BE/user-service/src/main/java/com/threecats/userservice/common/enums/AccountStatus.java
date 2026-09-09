@@ -1,4 +1,4 @@
-package com.threecats.userservice.enums;
+package com.threecats.userservice.common.enums;
 
 public enum AccountStatus {
     ACTIVE,

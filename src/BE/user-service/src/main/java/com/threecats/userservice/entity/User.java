@@ -1,7 +1,7 @@
 package com.threecats.userservice.entity;
 
-import com.threecats.userservice.enums.AccountStatus;
-import com.threecats.userservice.enums.Role;
+import com.threecats.userservice.common.enums.AccountStatus;
+import com.threecats.userservice.common.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
