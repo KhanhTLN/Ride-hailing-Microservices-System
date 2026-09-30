@@ -8,4 +8,7 @@ public abstract class BaseException extends RuntimeException {
         this.statusCode = statusCode;
     }
 
+    public int getStatus() {
+        return this.statusCode;
+    }
 }

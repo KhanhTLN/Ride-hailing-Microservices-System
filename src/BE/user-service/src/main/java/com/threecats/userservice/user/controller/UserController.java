@@ -1,7 +1,9 @@
 package com.threecats.userservice.user.controller;
 
+import com.threecats.userservice.user.dto.request.UpdateUserProfileRequest;
 import com.threecats.userservice.user.dto.request.UserRequest;
 import com.threecats.userservice.user.dto.response.ApiResponse;
+import com.threecats.userservice.user.dto.response.UserResponse;
 import com.threecats.userservice.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,5 +25,12 @@ public class UserController {
     @PostMapping("/create")
     public ApiResponse<?> createUser(@Valid @RequestBody UserRequest req) {
         return ApiResponse.success(userService.createUser(req));
+    }
+
+    @PatchMapping("/{id}")
+    public ApiResponse<?> updateUser(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateUserProfileRequest request) {
+        return ApiResponse.success(userService.updateUser(id, request));
     }
 }

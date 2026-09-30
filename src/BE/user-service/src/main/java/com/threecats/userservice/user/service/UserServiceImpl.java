@@ -1,14 +1,14 @@
 package com.threecats.userservice.user.service;
 
 
-import com.threecats.userservice.user.dto.request.UserRequest;
+import com.threecats.userservice.user.dto.request.UpdateUserProfileRequest;import com.threecats.userservice.user.dto.request.UserRequest;
 import com.threecats.userservice.user.dto.response.UserResponse;
 import com.threecats.userservice.user.entity.User;
 import com.threecats.userservice.common.enums.AccountStatus;
 import com.threecats.userservice.common.enums.Role;
 import com.threecats.userservice.common.exception.resource.ResourceAlreadyExistException;
 import com.threecats.userservice.common.exception.resource.ResourceNotFoundException;
-import com.threecats.userservice.user.repository.UserRepository;
+import com.threecats.userservice.user.mapper.UserMapper;import com.threecats.userservice.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +19,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService{
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
     @Override
     public UserResponse findUserById(UUID id){
@@ -56,6 +57,34 @@ public class UserServiceImpl implements UserService{
         userRepository.save(user);
 
         return tranferUserToUserResponse(user);
+    }
+
+    @Override
+    public UserResponse updateUser(UUID id, UpdateUserProfileRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        validateUniqueFields(user, request);
+
+        userMapper.updateUserFromDto(request, user);
+
+        User updatedUser = userRepository.save(user);
+
+        return tranferUserToUserResponse(updatedUser);
+    }
+
+    private void validateUniqueFields(User currentUser, UpdateUserProfileRequest request) {
+        if(request.getEmail() != null && !request.getEmail().equalsIgnoreCase(currentUser.getEmail())) {
+            if(userRepository.findByEmail(request.getEmail()).isPresent()) {
+                throw new ResourceAlreadyExistException("Email is already exists");
+            }
+        }
+
+        if(request.getPhone() != null && !request.getPhone().equalsIgnoreCase(currentUser.getPhone())) {
+            if(userRepository.findByPhone(request.getPhone()).isPresent()) {
+                throw new ResourceAlreadyExistException("Phone number is already exists");
+            }
+        }
     }
 
     private UserResponse tranferUserToUserResponse (User user) {

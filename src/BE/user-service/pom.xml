@@ -83,6 +83,11 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>1.5.5.Final</version> <!-- Đảm bảo khớp version với mapstruct-processor trong plugin -->
+        </dependency>
     </dependencies>
 
     <build>
@@ -103,11 +108,31 @@
                         </goals>
                         <configuration>
                             <annotationProcessorPaths>
+                                <!-- 1. Lombok Processor -->
                                 <path>
                                     <groupId>org.projectlombok</groupId>
                                     <artifactId>lombok</artifactId>
                                 </path>
+
+                                <!-- 2. MapStruct Processor -->
+                                <path>
+                                    <groupId>org.mapstruct</groupId>
+                                    <artifactId>mapstruct-processor</artifactId>
+                                    <version>1.5.5.Final</version>
+                                </path>
+
+                                <path>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok-mapstruct-binding</artifactId>
+                                    <version>0.2.0</version>
+                                </path>
                             </annotationProcessorPaths>
+
+                            <!-- Cấu hình MapStruct cho toàn bộ dự án -->
+                            <compilerArgs>
+                                <compilerArg>-Amapstruct.defaultNullValuePropertyMappingStrategy=IGNORE</compilerArg>
+                                <compilerArg>-Amapstruct.defaultComponentModel=spring</compilerArg>
+                            </compilerArgs>
                         </configuration>
                     </execution>
                     <execution>
