@@ -1,9 +1,8 @@
-package com.threecats.userservice.controller;
+package com.threecats.userservice.user.controller;
 
-import com.threecats.userservice.dto.request.UserRequest;
-import com.threecats.userservice.dto.response.ApiResponse;
-import com.threecats.userservice.dto.response.UserResponse;
-import com.threecats.userservice.service.UserService;
+import com.threecats.userservice.user.dto.request.UserRequest;
+import com.threecats.userservice.user.dto.response.ApiResponse;
+import com.threecats.userservice.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

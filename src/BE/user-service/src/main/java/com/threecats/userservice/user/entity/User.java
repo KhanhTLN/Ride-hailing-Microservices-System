@@ -1,4 +1,4 @@
-package com.threecats.userservice.entity;
+package com.threecats.userservice.user.entity;
 
 import com.threecats.userservice.common.enums.AccountStatus;
 import com.threecats.userservice.common.enums.Role;
@@ -22,6 +22,8 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    private String username;
+
     private String firstName;
 
     private String lastName;
@@ -41,7 +43,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AccountStatus status = AccountStatus.ACTIVE;
+    private AccountStatus status;
 
     @CreationTimestamp
     private OffsetDateTime createdAt;

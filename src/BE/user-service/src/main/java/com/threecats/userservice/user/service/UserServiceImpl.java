@@ -1,14 +1,14 @@
-package com.threecats.userservice.service;
+package com.threecats.userservice.user.service;
 
 
-import com.threecats.userservice.dto.request.UserRequest;
-import com.threecats.userservice.dto.response.UserResponse;
-import com.threecats.userservice.entity.User;
+import com.threecats.userservice.user.dto.request.UserRequest;
+import com.threecats.userservice.user.dto.response.UserResponse;
+import com.threecats.userservice.user.entity.User;
 import com.threecats.userservice.common.enums.AccountStatus;
 import com.threecats.userservice.common.enums.Role;
 import com.threecats.userservice.common.exception.resource.ResourceAlreadyExistException;
 import com.threecats.userservice.common.exception.resource.ResourceNotFoundException;
-import com.threecats.userservice.repository.UserRepository;
+import com.threecats.userservice.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -61,10 +61,16 @@ public class UserServiceImpl implements UserService{
     private UserResponse tranferUserToUserResponse (User user) {
         return UserResponse.builder()
                 .id(user.getId())
+                .username(user.getUsername())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
+                .role(user.getRole())
+                .status(user.getStatus())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .deletedAt(user.getDeletedAt())
                 .build();
     }
 

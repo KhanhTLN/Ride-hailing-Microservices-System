@@ -1,4 +1,4 @@
-package com.threecats.userservice.dto.response;
+package com.threecats.userservice.user.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 

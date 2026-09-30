@@ -1,4 +1,4 @@
-package com.threecats.userservice.dto.request;
+package com.threecats.userservice.user.dto.request;
 
 import lombok.*;
 
