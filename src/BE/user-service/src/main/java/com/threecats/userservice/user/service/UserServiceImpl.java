@@ -12,6 +12,7 @@ import com.threecats.userservice.user.mapper.UserMapper;import com.threecats.use
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -78,6 +79,13 @@ public class UserServiceImpl implements UserService{
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         userRepository.delete(user);
+    }
+
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(UserResponse::mapFromEntity)
+                .toList();
     }
 
     private void validateUniqueFields(User currentUser, UpdateUserProfileRequest request) {

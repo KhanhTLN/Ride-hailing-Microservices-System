@@ -42,4 +42,9 @@ public class UserController {
 
         return ApiResponse.success("Delete user " + id.toString() + "successfully");
     }
+
+    @GetMapping
+    public ApiResponse<?> getAllUser() {
+        return ApiResponse.success(userService.getAllUsers());
+    }
 }
