@@ -33,4 +33,13 @@ public class UserController {
             @Valid @RequestBody UpdateUserProfileRequest request) {
         return ApiResponse.success(userService.updateUser(id, request));
     }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<?> deleteUser(
+            @PathVariable UUID id
+    ) {
+        userService.deleteUser(id);
+
+        return ApiResponse.success("Delete user " + id.toString() + "successfully");
+    }
 }

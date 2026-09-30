@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Pattern;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.OffsetDateTime;
@@ -18,6 +20,10 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @Table(name="user")
+// 1. Ghi đè lệnh DELETE mặc định của Hibernate
+@SQLDelete(sql = "UPDATE \"user\" SET deleted_at = NOW(), status = 'INACTIVE' WHERE id = ?")
+// 2. Tự động lọc bỏ các user đã xóa mềm khi SELECT
+@SQLRestriction("deleted_at IS NULL")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

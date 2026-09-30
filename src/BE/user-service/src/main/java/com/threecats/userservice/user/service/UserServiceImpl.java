@@ -73,6 +73,13 @@ public class UserServiceImpl implements UserService{
         return tranferUserToUserResponse(updatedUser);
     }
 
+    public void deleteUser(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        userRepository.delete(user);
+    }
+
     private void validateUniqueFields(User currentUser, UpdateUserProfileRequest request) {
         if(request.getEmail() != null && !request.getEmail().equalsIgnoreCase(currentUser.getEmail())) {
             if(userRepository.findByEmail(request.getEmail()).isPresent()) {
