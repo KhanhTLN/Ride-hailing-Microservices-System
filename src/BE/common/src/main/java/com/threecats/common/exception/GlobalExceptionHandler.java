@@ -1,7 +1,5 @@
-package com.threecats.userservice.common.exception;
+package com.threecats.common.exception;
 
-import com.threecats.userservice.common.exception.BaseException;
-import com.threecats.userservice.common.exception.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;

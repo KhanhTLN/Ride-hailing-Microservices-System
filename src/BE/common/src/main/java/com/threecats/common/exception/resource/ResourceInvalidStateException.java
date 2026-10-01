@@ -1,6 +1,6 @@
-package com.threecats.userservice.common.exception.resource;
+package com.threecats.common.exception.resource;
 
-import com.threecats.userservice.common.exception.BaseException;
+import com.threecats.common.exception.BaseException;
 
 public abstract class ResourceInvalidStateException extends BaseException {
     public ResourceInvalidStateException() {

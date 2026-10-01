@@ -1,4 +1,4 @@
-package com.threecats.userservice.common.exception;
+package com.threecats.common.exception;
 
 public abstract class BaseException extends RuntimeException {
     private final int statusCode;

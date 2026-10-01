@@ -1,9 +1,9 @@
 package com.threecats.userservice.auth.service;
 
 import com.threecats.userservice.auth.dto.request.registerUserRequest;
-import com.threecats.userservice.common.enums.AccountStatus;
-import com.threecats.userservice.common.enums.Role;
-import com.threecats.userservice.common.exception.resource.ResourceAlreadyExistException;
+import com.threecats.userservice.enums.AccountStatus;
+import com.threecats.userservice.enums.Role;
+import com.threecats.common.exception.resource.ResourceAlreadyExistException;
 import com.threecats.userservice.user.dto.response.UserResponse;
 import com.threecats.userservice.user.entity.User;
 import com.threecats.userservice.user.repository.UserRepository;

@@ -1,4 +1,4 @@
-package com.threecats.userservice.common.exception;
+package com.threecats.common.exception;
 
 public record ErrorResponse(
         int status,

@@ -1,4 +1,4 @@
-package com.threecats.userservice.common.config;
+package com.threecats.common.config;
 
 import org.mapstruct.MapperConfig;
 import org.mapstruct.MappingConstants;

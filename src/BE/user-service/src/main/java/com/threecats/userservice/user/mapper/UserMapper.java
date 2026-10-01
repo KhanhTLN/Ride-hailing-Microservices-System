@@ -1,6 +1,6 @@
 package com.threecats.userservice.user.mapper;
 
-import com.threecats.userservice.common.config.CentralMapperConfig;
+import com.threecats.common.config.CentralMapperConfig;
 import com.threecats.userservice.user.dto.request.UpdateUserProfileRequest;
 import com.threecats.userservice.user.entity.User;
 import org.hibernate.sql.Update;

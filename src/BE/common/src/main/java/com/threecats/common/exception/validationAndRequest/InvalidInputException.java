@@ -1,6 +1,6 @@
-package com.threecats.userservice.common.exception.validationAndRequest;
+package com.threecats.common.exception.validationAndRequest;
 
-import com.threecats.userservice.common.exception.BaseException;
+import com.threecats.common.exception.BaseException;
 
 public abstract class InvalidInputException extends BaseException {
     public InvalidInputException() { super(400, "Invalid Input"); }
