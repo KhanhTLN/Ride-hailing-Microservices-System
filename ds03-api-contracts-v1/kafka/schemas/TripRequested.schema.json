@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TripRequested",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "const": "TripRequested"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "producer": {
+      "const": "trip"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "trip_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "attempt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "passenger_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "pickup": {
+          "type": "object",
+          "properties": {
+            "latitude": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "longitude": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "address": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "required": [
+            "latitude",
+            "longitude"
+          ],
+          "additionalProperties": false
+        },
+        "vehicle_type": {
+          "type": "string",
+          "enum": [
+            "MOTORBIKE",
+            "CAR"
+          ]
+        },
+        "search_deadline": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "excluded_driver_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "required": [
+        "trip_id",
+        "attempt_id",
+        "passenger_id",
+        "pickup",
+        "vehicle_type",
+        "search_deadline",
+        "excluded_driver_ids"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "producer",
+    "occurred_at",
+    "correlation_id",
+    "causation_id",
+    "aggregate_id",
+    "aggregate_version",
+    "data"
+  ],
+  "additionalProperties": false
+}

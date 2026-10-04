@@ -1,0 +1,9 @@
+syntax = "proto3";
+package ds03.common.v1;
+option java_multiple_files = true;
+option java_package = "com.ds03.contracts.common.v1";
+message Point { double latitude = 1; double longitude = 2; string address = 3; }
+message Money { string amount = 1; string currency = 2; }
+enum VehicleType { VEHICLE_TYPE_UNSPECIFIED = 0; MOTORBIKE = 1; CAR = 2; }
+// Validate UUID syntax and nonempty values in application code.
+message MutationContext { string idempotency_key = 1; }

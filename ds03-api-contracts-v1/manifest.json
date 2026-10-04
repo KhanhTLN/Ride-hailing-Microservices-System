@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "status": "PROPOSED_TEAM_BASELINE",
+  "services": [
+    "identity",
+    "driver",
+    "trip",
+    "matching",
+    "pricing",
+    "payment",
+    "notification"
+  ],
+  "rest_operations": 46,
+  "grpc_methods": 10,
+  "kafka_events": 15,
+  "note": "Contracts only; not running services or database migrations."
+}

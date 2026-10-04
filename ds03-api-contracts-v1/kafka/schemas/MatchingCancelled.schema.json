@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MatchingCancelled",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "const": "MatchingCancelled"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "producer": {
+      "const": "trip"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "trip_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "attempt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "trip_id",
+        "attempt_id",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "producer",
+    "occurred_at",
+    "correlation_id",
+    "causation_id",
+    "aggregate_id",
+    "aggregate_version",
+    "data"
+  ],
+  "additionalProperties": false
+}

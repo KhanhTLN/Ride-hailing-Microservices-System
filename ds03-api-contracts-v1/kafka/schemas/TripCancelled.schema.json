@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TripCancelled",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "const": "TripCancelled"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "producer": {
+      "const": "trip"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "trip_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "passenger_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "driver_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "driver_user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "SEARCHING",
+            "DRIVER_OFFERED",
+            "ACCEPTED",
+            "ARRIVED",
+            "IN_PROGRESS",
+            "COMPLETED",
+            "CANCELLED",
+            "NO_DRIVER"
+          ]
+        },
+        "trip_version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "trip_id",
+        "passenger_id",
+        "status",
+        "trip_version",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "producer",
+    "occurred_at",
+    "correlation_id",
+    "causation_id",
+    "aggregate_id",
+    "aggregate_version",
+    "data"
+  ],
+  "additionalProperties": false
+}

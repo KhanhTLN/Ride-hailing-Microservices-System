@@ -1,0 +1,4 @@
+PyYAML
+jsonschema
+grpcio-tools
+openapi-spec-validator

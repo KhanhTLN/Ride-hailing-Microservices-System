@@ -1,0 +1,15 @@
+syntax = "proto3";
+package ds03.pricing.v1;
+option java_multiple_files = true;
+option java_package = "com.ds03.contracts.pricing.v1";
+import "ds03/common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+service PricingService {
+  rpc GetQuote(GetQuoteRequest) returns (Quote);
+  rpc CalculateFinalFare(CalculateFinalFareRequest) returns (FinalFare);
+}
+message GetQuoteRequest { string quote_id = 1; string passenger_id = 2; }
+message Quote { string id = 1; string passenger_id = 2; ds03.common.v1.Point pickup = 3; ds03.common.v1.Point dropoff = 4; ds03.common.v1.VehicleType vehicle_type = 5; uint32 estimated_distance_m = 6; uint32 estimated_duration_s = 7; ds03.common.v1.Money fare = 8; string pricing_version = 9; google.protobuf.Timestamp expires_at = 10; }
+message CalculateFinalFareRequest { string trip_id = 1; string quote_id = 2; string passenger_id = 3; ds03.common.v1.MutationContext mutation = 4; }
+// v1 fixed quote pricing: final fare equals accepted quote fare, even after quote expiry.
+message FinalFare { string trip_id = 1; string quote_id = 2; ds03.common.v1.Money fare = 3; string pricing_version = 4; }
