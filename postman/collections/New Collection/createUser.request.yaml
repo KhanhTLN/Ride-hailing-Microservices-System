@@ -1,0 +1,19 @@
+$kind: http-request
+url: http://localhost:8080/api/user/create
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"lastName\":\"quyen\",\r
+
+    \    \"fistName\":\"pham\",\r
+
+    \    \"email\":\"quyen@gmail.com\",\r
+
+    \    \"phone\":\"09143432\",\r
+
+    \    \"password\":\"abcbdbb\"\r
+
+    }"
+order: 1788940449554
