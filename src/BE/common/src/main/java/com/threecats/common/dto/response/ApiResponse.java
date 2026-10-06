@@ -1,10 +1,12 @@
-package com.threecats.userservice.user.dto.response;
+package com.threecats.common.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Builder;
 
 import java.time.Instant;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Builder
 public record ApiResponse<T>(
         boolean success,
         int status,
