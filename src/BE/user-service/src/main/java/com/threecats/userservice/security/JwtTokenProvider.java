@@ -1,5 +1,6 @@
 package com.threecats.userservice.security;
 
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import com.threecats.userservice.enums.Role;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -47,7 +48,7 @@ public class JwtTokenProvider {
     }
     public String generateRefreshToken(UUID id) {
         OffsetDateTime now = OffsetDateTime.now();
-        OffsetDateTime expiry = now.plusSeconds(accessTokenExpiration / 1000);
+        OffsetDateTime expiry = now.plusSeconds(refreshTokenExpiration / 1000);
 
         Date issuedAt = Date.from(now.toInstant());
         Date expiration = Date.from(expiry.toInstant());
@@ -73,5 +74,28 @@ public class JwtTokenProvider {
 
     public long getAccessTokenExpirationInSeconds() {
         return accessTokenExpiration / 1000;
+    }
+
+    public String getUserIdFromJwt(String token) {
+        return Jwts.parser()
+                .verifyWith((javax.crypto.SecretKey) getSigningKey())
+                .build()
+                .parseSignedClaims(token) 
+                .getPayload()
+                .getSubject();
+    }
+
+    // 2. Method Validate Token
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser()
+                    .verifyWith((javax.crypto.SecretKey) getSigningKey())
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            // Token không hợp lệ, bị sửa đổi hoặc đã hết hạn
+            return false;
+        }
     }
 }

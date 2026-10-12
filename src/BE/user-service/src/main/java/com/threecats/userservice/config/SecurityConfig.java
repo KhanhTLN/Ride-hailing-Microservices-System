@@ -1,9 +1,11 @@
 package com.threecats.userservice.config;
 
 import com.threecats.userservice.security.CustomUserDetailsService;
+import com.threecats.userservice.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -15,6 +17,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -28,6 +31,7 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     // 2. DaoAuthenticationProvider kết nối UserDetailsService & PasswordEncoder
     @Bean
@@ -48,13 +52,24 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Áp dụng cấu hình CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authenticationProvider(authenticationProvider()) // Đăng ký AuthenticationProvider
+                .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Cho phép không cần token ở các API Auth
+                        // 1. CHẮC CHẮN phải permitAll cho /error để thấy lỗi gốc thay vì 403 bọc ngoài
+                        .requestMatchers("/error").permitAll()
+
+                        // 2. Các API Public không cần Token
+                        .requestMatchers("/api/auth/**").permitAll()
+
+                        // Ví dụ: Nếu API getAllUser() ở đường dẫn /users thì permitAll ở đây:
+//                         .requestMatchers(HttpMethod.GET, "/api/user/**").permitAll()
+
+                        // 3. TẤT CẢ các API còn lại bắt buộc phải có Token
                         .anyRequest().authenticated()
-                );
+                )
+                // 4. BẮT BUỘC: Thêm JWT Filter vào trước UsernamePasswordAuthenticationFilter
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
