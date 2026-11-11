@@ -2,8 +2,7 @@ package com.threecats.userservice.user.controller;
 
 import com.threecats.userservice.user.dto.request.UpdateUserProfileRequest;
 import com.threecats.userservice.user.dto.request.UserRequest;
-import com.threecats.userservice.user.dto.response.ApiResponse;
-import com.threecats.userservice.user.dto.response.UserResponse;
+import com.threecats.common.dto.response.ApiResponse;
 import com.threecats.userservice.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
