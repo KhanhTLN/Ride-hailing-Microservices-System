@@ -7,7 +7,7 @@ import com.threecats.userservice.user.dto.response.UserResponse;
 import org.springframework.http.ResponseCookie;
 
 public interface AuthService {
-    UserResponse registerUser(registerUserRequest request);
+    UserResponse registerUserWithRole(registerUserRequest request, String role);
     LoginResult login(LoginRequest request);
     record LoginResult(LoginResponse response, ResponseCookie refreshTokenCookie) {}
 }
