@@ -1,0 +1,13 @@
+{
+  "username": "driver_duc",
+  "password": "password123",
+  "firstName": "Đức",
+  "lastName": "Trần Văn",
+  "phone": "0934567891",
+  "email": "driver.duc@gmail.com",
+  "identityCard": "001202099991",
+  "licenseNumber": "B2-55667791",
+  "vehicleType": "CAR_4_SEATS",
+  "vehiclePlate": "30E-999.91",
+  "vehicleModel": "Toyota Vios 2024"
+}
