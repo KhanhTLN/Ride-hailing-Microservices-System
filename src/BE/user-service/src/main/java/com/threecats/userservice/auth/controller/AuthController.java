@@ -5,10 +5,8 @@ import com.threecats.userservice.auth.dto.request.registerUserRequest;
 import com.threecats.userservice.auth.dto.response.LoginResponse;
 import com.threecats.userservice.auth.service.AuthService;
 import com.threecats.common.dto.response.ApiResponse;
-import com.threecats.userservice.auth.service.AuthServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,9 +21,9 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @PostMapping("/register")
+    @PostMapping("/register/customer")
     ApiResponse<?> registerUser(@Valid @RequestBody registerUserRequest request) {
-        authService.registerUser(request);
+        authService.registerUserWithRole(request, "CUSTOMER");
         return ApiResponse.success("Register successfully!");
     }
 

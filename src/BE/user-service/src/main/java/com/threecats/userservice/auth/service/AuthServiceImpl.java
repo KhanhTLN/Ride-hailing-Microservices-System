@@ -31,7 +31,7 @@ public class AuthServiceImpl implements AuthService{
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public UserResponse registerUser(registerUserRequest request) {
+    public UserResponse registerUserWithRole(registerUserRequest request, String role) {
 
         if(userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResourceAlreadyExistException("Username has already in use");
@@ -53,7 +53,7 @@ public class AuthServiceImpl implements AuthService{
                 .createdAt(OffsetDateTime.now())
                 .updatedAt(null)
                 .deletedAt(null)
-                .role(Role.CUSTOMER)
+                .role(Role.valueOf(role))
                 .status(AccountStatus.INACTIVE)
                 .build();
 
