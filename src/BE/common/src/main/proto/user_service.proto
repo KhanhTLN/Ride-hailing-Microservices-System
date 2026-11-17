@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package com.threecats.common.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.threecats.common.grpc";
+option java_outer_classname = "UserServiceProto";
+
+// Service gRPC định danh người dùng phục vụ liên lạc nội bộ giữa các Microservices
+service UserGrpcService {
+    // 1. Tạo tài khoản người dùng cho tài xế với role DRIVER
+    rpc RegisterDriverUser (RegisterDriverUserRequest) returns (UserProtoResponse);
+
+    // 2. Tra cứu thông tin người dùng theo UUID
+    rpc GetUserById (GetUserByIdRequest) returns (UserProtoResponse);
+
+    // 3. Rollback người dùng nếu phía driver-service lưu DB thất bại (Compensating action)
+    rpc RollbackUser (RollbackUserRequest) returns (RollbackUserResponse);
+}
+
+message RegisterDriverUserRequest {
+    string username = 1;
+    string password = 2;
+    string firstName = 3;
+    string lastName = 4;
+    string phone = 5;
+    string email = 6;
+}
+
+message GetUserByIdRequest {
+    string userId = 1;
+}
+
+message RollbackUserRequest {
+    string userId = 1;
+}
+
+message RollbackUserResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message UserProtoResponse {
+    string id = 1;
+    string username = 2;
+    string firstName = 3;
+    string lastName = 4;
+    string phone = 5;
+    string email = 6;
+    string role = 7;
+    string status = 8;
+}
