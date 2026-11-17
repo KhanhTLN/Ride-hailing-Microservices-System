@@ -1,0 +1,389 @@
+asyncapi: 3.0.0
+info:
+  title: matching Kafka contract
+  version: 1.0.0
+defaultContentType: application/json
+servers:
+  local:
+    host: localhost:9092
+    protocol: kafka
+    description: Development example; production uses authenticated TLS listeners
+channels:
+  ds03_trip_events_v1:
+    address: ds03.trip.events.v1
+    messages:
+      TripRequested:
+        $ref: '#/components/messages/TripRequested'
+      MatchingCancelled:
+        $ref: '#/components/messages/MatchingCancelled'
+  ds03_matching_events_v1:
+    address: ds03.matching.events.v1
+    messages:
+      DriverReserved:
+        $ref: '#/components/messages/DriverReserved'
+      MatchingFailed:
+        $ref: '#/components/messages/MatchingFailed'
+operations:
+  receiveTripRequested:
+    action: receive
+    channel:
+      $ref: '#/channels/ds03_trip_events_v1'
+    messages:
+    - $ref: '#/channels/ds03_trip_events_v1/messages/TripRequested'
+  receiveMatchingCancelled:
+    action: receive
+    channel:
+      $ref: '#/channels/ds03_trip_events_v1'
+    messages:
+    - $ref: '#/channels/ds03_trip_events_v1/messages/MatchingCancelled'
+  sendDriverReserved:
+    action: send
+    channel:
+      $ref: '#/channels/ds03_matching_events_v1'
+    messages:
+    - $ref: '#/channels/ds03_matching_events_v1/messages/DriverReserved'
+  sendMatchingFailed:
+    action: send
+    channel:
+      $ref: '#/channels/ds03_matching_events_v1'
+    messages:
+    - $ref: '#/channels/ds03_matching_events_v1/messages/MatchingFailed'
+components:
+  messages:
+    TripRequested:
+      name: TripRequested
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        schemaFormat: application/schema+json;version=draft-07
+        schema:
+          $schema: http://json-schema.org/draft-07/schema#
+          title: TripRequested
+          type: object
+          properties:
+            event_id:
+              type: string
+              format: uuid
+            event_type:
+              const: TripRequested
+            schema_version:
+              const: 1
+            producer:
+              const: trip
+            occurred_at:
+              type: string
+              format: date-time
+            correlation_id:
+              type: string
+              format: uuid
+            causation_id:
+              type: string
+              format: uuid
+            aggregate_id:
+              type: string
+              format: uuid
+            aggregate_version:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            data:
+              type: object
+              properties:
+                trip_id:
+                  type: string
+                  format: uuid
+                attempt_id:
+                  type: string
+                  format: uuid
+                passenger_id:
+                  type: string
+                  format: uuid
+                pickup:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                      minimum: -90
+                      maximum: 90
+                    longitude:
+                      type: number
+                      minimum: -180
+                      maximum: 180
+                    address:
+                      type: string
+                      maxLength: 300
+                  required:
+                  - latitude
+                  - longitude
+                  additionalProperties: false
+                vehicle_type:
+                  type: string
+                  enum:
+                  - MOTORBIKE
+                  - CAR
+                search_deadline:
+                  type: string
+                  format: date-time
+                excluded_driver_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+              required:
+              - trip_id
+              - attempt_id
+              - passenger_id
+              - pickup
+              - vehicle_type
+              - search_deadline
+              - excluded_driver_ids
+              additionalProperties: false
+          required:
+          - event_id
+          - event_type
+          - schema_version
+          - producer
+          - occurred_at
+          - correlation_id
+          - causation_id
+          - aggregate_id
+          - aggregate_version
+          - data
+          additionalProperties: false
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            description: trip_id; stable within a trip
+          bindingVersion: 0.5.0
+    MatchingCancelled:
+      name: MatchingCancelled
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        schemaFormat: application/schema+json;version=draft-07
+        schema:
+          $schema: http://json-schema.org/draft-07/schema#
+          title: MatchingCancelled
+          type: object
+          properties:
+            event_id:
+              type: string
+              format: uuid
+            event_type:
+              const: MatchingCancelled
+            schema_version:
+              const: 1
+            producer:
+              const: trip
+            occurred_at:
+              type: string
+              format: date-time
+            correlation_id:
+              type: string
+              format: uuid
+            causation_id:
+              type: string
+              format: uuid
+            aggregate_id:
+              type: string
+              format: uuid
+            aggregate_version:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            data:
+              type: object
+              properties:
+                trip_id:
+                  type: string
+                  format: uuid
+                attempt_id:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+              required:
+              - trip_id
+              - attempt_id
+              - reason
+              additionalProperties: false
+          required:
+          - event_id
+          - event_type
+          - schema_version
+          - producer
+          - occurred_at
+          - correlation_id
+          - causation_id
+          - aggregate_id
+          - aggregate_version
+          - data
+          additionalProperties: false
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            description: trip_id; stable within a trip
+          bindingVersion: 0.5.0
+    DriverReserved:
+      name: DriverReserved
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        schemaFormat: application/schema+json;version=draft-07
+        schema:
+          $schema: http://json-schema.org/draft-07/schema#
+          title: DriverReserved
+          type: object
+          properties:
+            event_id:
+              type: string
+              format: uuid
+            event_type:
+              const: DriverReserved
+            schema_version:
+              const: 1
+            producer:
+              const: matching
+            occurred_at:
+              type: string
+              format: date-time
+            correlation_id:
+              type: string
+              format: uuid
+            causation_id:
+              type: string
+              format: uuid
+            aggregate_id:
+              type: string
+              format: uuid
+            aggregate_version:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            data:
+              type: object
+              properties:
+                trip_id:
+                  type: string
+                  format: uuid
+                attempt_id:
+                  type: string
+                  format: uuid
+                driver_id:
+                  type: string
+                  format: uuid
+                reservation_id:
+                  type: string
+                  format: uuid
+                expires_at:
+                  type: string
+                  format: date-time
+              required:
+              - trip_id
+              - attempt_id
+              - driver_id
+              - reservation_id
+              - expires_at
+              additionalProperties: false
+          required:
+          - event_id
+          - event_type
+          - schema_version
+          - producer
+          - occurred_at
+          - correlation_id
+          - causation_id
+          - aggregate_id
+          - aggregate_version
+          - data
+          additionalProperties: false
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            description: trip_id; stable within a trip
+          bindingVersion: 0.5.0
+    MatchingFailed:
+      name: MatchingFailed
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        schemaFormat: application/schema+json;version=draft-07
+        schema:
+          $schema: http://json-schema.org/draft-07/schema#
+          title: MatchingFailed
+          type: object
+          properties:
+            event_id:
+              type: string
+              format: uuid
+            event_type:
+              const: MatchingFailed
+            schema_version:
+              const: 1
+            producer:
+              const: matching
+            occurred_at:
+              type: string
+              format: date-time
+            correlation_id:
+              type: string
+              format: uuid
+            causation_id:
+              type: string
+              format: uuid
+            aggregate_id:
+              type: string
+              format: uuid
+            aggregate_version:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            data:
+              type: object
+              properties:
+                trip_id:
+                  type: string
+                  format: uuid
+                attempt_id:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+                  enum:
+                  - NO_DRIVER
+                  - DEADLINE_EXCEEDED
+                  - DEPENDENCY_UNAVAILABLE
+              required:
+              - trip_id
+              - attempt_id
+              - reason
+              additionalProperties: false
+          required:
+          - event_id
+          - event_type
+          - schema_version
+          - producer
+          - occurred_at
+          - correlation_id
+          - causation_id
+          - aggregate_id
+          - aggregate_version
+          - data
+          additionalProperties: false
+      bindings:
+        kafka:
+          key:
+            type: string
+            format: uuid
+            description: trip_id; stable within a trip
+          bindingVersion: 0.5.0
