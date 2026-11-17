@@ -1,0 +1,13 @@
+{
+  "username": "driver_duplicate_test",
+  "password": "password123",
+  "firstName": "Hải",
+  "lastName": "Lê",
+  "phone": "0977665544",
+  "email": "driver.hai.duplicate@gmail.com",
+  "identityCard": "001202088888",
+  "licenseNumber": "B2-88888888",
+  "vehicleType": "CAR_4_SEATS",
+  "vehiclePlate": "29A-888.88",
+  "vehicleModel": "Hyundai Accent"
+}

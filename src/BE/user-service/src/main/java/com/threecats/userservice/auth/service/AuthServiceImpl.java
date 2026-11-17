@@ -63,6 +63,41 @@ public class AuthServiceImpl implements AuthService{
     }
 
     @Override
+    public UserResponse registerDriverUser(String username, String password, String firstName, String lastName, String phone, String email) {
+        if(userRepository.findByUsername(username).isPresent()) {
+            throw new ResourceAlreadyExistException("Username has already in use");
+        }
+        if(userRepository.findByEmail(email).isPresent()) {
+            throw new ResourceAlreadyExistException("Email has already in use");
+        }
+        if(userRepository.findByPhone(phone).isPresent()) {
+            throw new ResourceAlreadyExistException("Phone number has already in use");
+        }
+
+        User user = User.builder()
+                .username(username)
+                .password(passwordEncoder.encode(password))
+                .firstName(firstName)
+                .lastName(lastName)
+                .phone(phone)
+                .email(email)
+                .createdAt(OffsetDateTime.now())
+                .updatedAt(null)
+                .deletedAt(null)
+                .role(Role.DRIVER)
+                .status(AccountStatus.ACTIVE)
+                .build();
+
+        userRepository.save(user);
+        return tranferUserToUserResponse(user);
+    }
+
+    @Override
+    public void rollbackUser(java.util.UUID userId) {
+        userRepository.findById(userId).ifPresent(userRepository::delete);
+    }
+
+    @Override
     public LoginResult login(LoginRequest request) {
 
         // 1. Xác thực thông tin đăng nhập qua Spring Security

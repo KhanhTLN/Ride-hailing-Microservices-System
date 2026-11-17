@@ -1,0 +1,322 @@
+{
+  "info": {
+    "_postman_id": "b1a2c3d4-9999-4444-aaaa-bbbbccccdddd",
+    "name": "RHDS - Microservices API Full Collection",
+    "description": "Bộ sưu tập kiểm thử toàn diện tất cả các REST API từ đầu dự án đến nay (Auth, User Management, Driver Registration qua gRPC)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "userBaseUrl",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "driverBaseUrl",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "sampleUserId",
+      "value": "de28a2a8-33b1-4155-bfa1-76136eaece19",
+      "type": "string"
+    },
+    {
+      "key": "sampleDriverId",
+      "value": "a1111111-2222-3333-4444-555555555555",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication Service (Port 8082)",
+      "item": [
+        {
+          "name": "1.1. Register Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"customer_an\",\n  \"firstName\": \"An\",\n  \"lastName\": \"Nguyễn\",\n  \"phone\": \"0911223344\",\n  \"email\": \"customer.an@gmail.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{userBaseUrl}}/api/auth/register/customer",
+              "host": ["{{userBaseUrl}}"],
+              "path": ["api", "auth", "register", "customer"]
+            },
+            "description": "Đăng ký tài khoản khách hàng thông thường (role CUSTOMER)"
+          },
+          "response": []
+        },
+        {
+          "name": "1.2. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set(\"accessToken\", jsonData.data.accessToken);",
+                  "    console.log(\"Saved accessToken:\", jsonData.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"customer_an\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{userBaseUrl}}/api/auth/login",
+              "host": ["{{userBaseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Đăng nhập hệ thống, nhận Access Token trong Body (tự động gán vào biến accessToken) và Refresh Token trong Cookie"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. User Management Service (Port 8082)",
+      "item": [
+        {
+          "name": "2.1. Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userBaseUrl}}/api/user",
+              "host": ["{{userBaseUrl}}"],
+              "path": ["api", "user"]
+            },
+            "description": "Lấy danh sách tất cả người dùng trong hệ thống"
+          },
+          "response": []
+        },
+        {
+          "name": "2.2. Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userBaseUrl}}/api/user/{{sampleUserId}}",
+              "host": ["{{userBaseUrl}}"],
+              "path": ["api", "user", "{{sampleUserId}}"]
+            },
+            "description": "Lấy thông tin chi tiết một người dùng theo UUID"
+          },
+          "response": []
+        },
+        {
+          "name": "2.3. Create User (Internal/Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Bình\",\n  \"lastName\": \"Phạm\",\n  \"phone\": \"0988776655\",\n  \"email\": \"binh.pham@gmail.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{userBaseUrl}}/api/user/create",
+              "host": ["{{userBaseUrl}}"],
+              "path": ["api", "user", "create"]
+            },
+            "description": "Tạo người dùng mới trực tiếp (Internal / Admin)"
+          },
+          "response": []
+        },
+        {
+          "name": "2.4. Update User Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"customer_an_new\",\n  \"firstName\": \"An Khang\",\n  \"lastName\": \"Nguyễn\",\n  \"phone\": \"0911223399\",\n  \"email\": \"an.new@gmail.com\"\n}"
+            },
+            "url": {
+              "raw": "{{userBaseUrl}}/api/user/{{sampleUserId}}",
+              "host": ["{{userBaseUrl}}"],
+              "path": ["api", "user", "{{sampleUserId}}"]
+            },
+            "description": "Cập nhật thông tin profile của người dùng"
+          },
+          "response": []
+        },
+        {
+          "name": "2.5. Delete User By ID",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{userBaseUrl}}/api/user/{{sampleUserId}}",
+              "host": ["{{userBaseUrl}}"],
+              "path": ["api", "user", "{{sampleUserId}}"]
+            },
+            "description": "Xóa tài khoản người dùng theo UUID"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Driver Service (Port 8081 - gRPC Port 9090)",
+      "item": [
+        {
+          "name": "3.1. Register Driver - Car 4 Seats (gRPC Orchestration)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data && jsonData.data.userId) {",
+                  "    pm.collectionVariables.set(\"sampleDriverId\", jsonData.data.userId);",
+                  "    console.log(\"Saved sampleDriverId:\", jsonData.data.userId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"driver_duc_new\",\n  \"password\": \"password123\",\n  \"firstName\": \"Đức\",\n  \"lastName\": \"Trần Văn\",\n  \"phone\": \"0934567891\",\n  \"email\": \"driver.duc.new@gmail.com\",\n  \"identityCard\": \"001202099991\",\n  \"licenseNumber\": \"B2-55667791\",\n  \"vehicleType\": \"CAR_4_SEATS\",\n  \"vehiclePlate\": \"30E-999.91\",\n  \"vehicleModel\": \"Toyota Vios 2024\"\n}"
+            },
+            "url": {
+              "raw": "{{driverBaseUrl}}/api/drivers/register",
+              "host": ["{{driverBaseUrl}}"],
+              "path": ["api", "drivers", "register"]
+            },
+            "description": "Đăng ký trọn gói tài xế ô tô: driver-service gọi gRPC sang user-service tạo User (role DRIVER), nhận userId và lưu Driver vào rhds-driver."
+          },
+          "response": []
+        },
+        {
+          "name": "3.2. Register Driver - Bike (gRPC Orchestration)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"driver_bike_linh\",\n  \"password\": \"password123\",\n  \"firstName\": \"Linh\",\n  \"lastName\": \"Vũ Đình\",\n  \"phone\": \"0981122334\",\n  \"email\": \"driver.linh.bike@gmail.com\",\n  \"identityCard\": \"001202077771\",\n  \"licenseNumber\": \"A1-11223344\",\n  \"vehicleType\": \"BIKE\",\n  \"vehiclePlate\": \"29B1-888.99\",\n  \"vehicleModel\": \"Honda Wave Alpha\"\n}"
+            },
+            "url": {
+              "raw": "{{driverBaseUrl}}/api/drivers/register",
+              "host": ["{{driverBaseUrl}}"],
+              "path": ["api", "drivers", "register"]
+            },
+            "description": "Đăng ký tài xế xe máy (BIKE) sử dụng điều phối gRPC"
+          },
+          "response": []
+        },
+        {
+          "name": "3.3. Get Driver Profile (Queries DriverDB + User info via gRPC)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{driverBaseUrl}}/api/drivers/{{sampleDriverId}}",
+              "host": ["{{driverBaseUrl}}"],
+              "path": ["api", "drivers", "{{sampleDriverId}}"]
+            },
+            "description": "Lấy hồ sơ tài xế: Lấy thông tin bằng lái/xe từ driver-service và họ tên/SĐT từ user-service qua gRPC."
+          },
+          "response": []
+        },
+        {
+          "name": "3.4. Test Duplicate Vehicle Plate (Fail 409 Conflict)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"driver_fail_plate\",\n  \"password\": \"password123\",\n  \"firstName\": \"Hải\",\n  \"lastName\": \"Lê\",\n  \"phone\": \"0977665544\",\n  \"email\": \"haile@gmail.com\",\n  \"identityCard\": \"001202088888\",\n  \"licenseNumber\": \"B2-88888888\",\n  \"vehicleType\": \"CAR_4_SEATS\",\n  \"vehiclePlate\": \"29A-888.88\",\n  \"vehicleModel\": \"Hyundai Accent\"\n}"
+            },
+            "url": {
+              "raw": "{{driverBaseUrl}}/api/drivers/register",
+              "host": ["{{driverBaseUrl}}"],
+              "path": ["api", "drivers", "register"]
+            },
+            "description": "Kiểm thử lỗi vi phạm trùng biển số xe (đã có trong hệ thống), driver-service chặn ngay lập tức và trả 409 Conflict."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
