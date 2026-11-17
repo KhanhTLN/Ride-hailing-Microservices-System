@@ -1,8 +1,8 @@
 package com.threecats.driverservice.grpc;
 
 import com.threecats.common.exception.resource.ResourceAlreadyExistException;
-import com.threecats.common.exception.resource.ResourceInvalidException;
 import com.threecats.common.exception.resource.ResourceNotFoundException;
+import com.threecats.common.exception.validationAndRequest.InvalidInputException;
 import com.threecats.common.grpc.*;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -74,7 +74,7 @@ public class UserGrpcClient {
         } else if (code == Status.Code.NOT_FOUND) {
             throw new ResourceNotFoundException(description != null ? description : "Khong tim thay tai nguyen!");
         } else if (code == Status.Code.INVALID_ARGUMENT) {
-            throw new ResourceInvalidException(description != null ? description : "Du lieu khong hop le!");
+            throw new InvalidInputException(description != null ? description : "Du lieu khong hop le!");
         } else {
             throw new RuntimeException("Loi ket noi gRPC toi User Service: " + description, e);
         }
