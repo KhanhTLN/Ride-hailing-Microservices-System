@@ -1,0 +1,14 @@
+package com.threecats.common.exception;
+
+public abstract class BaseException extends RuntimeException {
+    private final int statusCode;
+
+    protected BaseException(final int statusCode, final String message) {
+        super(message);
+        this.statusCode = statusCode;
+    }
+
+    public int getStatus() {
+        return this.statusCode;
+    }
+}

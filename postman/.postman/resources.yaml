@@ -1,0 +1,7 @@
+# Use this workspace to collaborate
+workspace:
+  id: c53f6661-3f12-47fc-89a6-a7e7950ece14
+
+localResources:
+  collections:
+    - ../Ride_Hailing_User_Service.postman_collection.json
