@@ -32,6 +32,7 @@ public class DriverServiceImpl implements DriverService {
     private final DriverRepository driverRepository;
     private final VehicleRepository vehicleRepository;
     private final UserGrpcClient userGrpcClient;
+    private final DriverReservationService reservations;
 
     // =========================================================================
     // DS03 API CONTRACT v1.0.0 METHODS
@@ -109,6 +110,8 @@ public class DriverServiceImpl implements DriverService {
     public VehicleResponse setActiveVehicle(UUID userId, VehicleInput request) {
         Driver driver = driverRepository.lockByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
+
+        reservations.ensureVehicleCanChange(driver.getId());
 
         String plate = request.getPlateNumber().trim().toUpperCase(java.util.Locale.ROOT);
         String type = request.getVehicleType().trim().toUpperCase(java.util.Locale.ROOT);

@@ -45,7 +45,7 @@ public class DriverController {
             @Valid @RequestBody DriverCreate request,
             Authentication authentication) {
         UUID userId = getAuthenticatedUserId(authentication);
-        DriverResponse response = idempotency.execute(userId, "createDriver", idempotencyKey, request,
+        DriverResponse response = idempotency.execute(userId.toString(), "createDriver", idempotencyKey, request,
                 DriverResponse.class, () -> driverService.createDriver(userId, request));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -67,7 +67,7 @@ public class DriverController {
             @PathVariable("driver_id") UUID driverId,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody ApprovalRequest request, Authentication authentication) {
-        DriverResponse response = idempotency.execute(getAuthenticatedUserId(authentication),
+        DriverResponse response = idempotency.execute(getAuthenticatedUserId(authentication).toString(),
                 "approveDriver", idempotencyKey, List.of(driverId, request), DriverResponse.class,
                 () -> driverService.approveDriver(driverId, request));
         return ResponseEntity.ok(response);
@@ -79,7 +79,7 @@ public class DriverController {
             @Valid @RequestBody VehicleInput request,
             Authentication authentication) {
         UUID userId = getAuthenticatedUserId(authentication);
-        VehicleResponse response = idempotency.execute(userId, "setActiveVehicle", idempotencyKey, request,
+        VehicleResponse response = idempotency.execute(userId.toString(), "setActiveVehicle", idempotencyKey, request,
                 VehicleResponse.class, () -> driverService.setActiveVehicle(userId, request));
         return ResponseEntity.ok(response);
     }
@@ -97,7 +97,7 @@ public class DriverController {
             @Valid @RequestBody AvailabilityInput request,
             Authentication authentication) {
         UUID userId = getAuthenticatedUserId(authentication);
-        AvailabilityResponse response = idempotency.execute(userId, "setAvailability", idempotencyKey, request,
+        AvailabilityResponse response = idempotency.execute(userId.toString(), "setAvailability", idempotencyKey, request,
                 AvailabilityResponse.class, () -> driverService.setAvailability(userId, request));
         return ResponseEntity.ok(response);
     }
@@ -107,7 +107,7 @@ public class DriverController {
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             Authentication authentication) {
         UUID userId = getAuthenticatedUserId(authentication);
-        LocationSessionResponse response = idempotency.execute(userId, "startLocationSession", idempotencyKey, List.of(),
+        LocationSessionResponse response = idempotency.execute(userId.toString(), "startLocationSession", idempotencyKey, List.of(),
                 LocationSessionResponse.class, () -> driverService.startLocationSession(userId));
         return ResponseEntity.ok(response);
     }

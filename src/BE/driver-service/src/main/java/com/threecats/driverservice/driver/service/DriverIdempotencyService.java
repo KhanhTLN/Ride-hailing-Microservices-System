@@ -10,7 +10,6 @@ import tools.jackson.databind.ObjectMapper;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 @Service
@@ -24,12 +23,12 @@ public class DriverIdempotencyService {
     }
 
     @Transactional
-    public <T> T execute(UUID caller, String operation, String key, Object payload,
+    public <T> T execute(String caller, String operation, String key, Object payload,
                          Class<T> responseType, Supplier<T> mutation) {
         if (key == null || key.isBlank() || key.length() > 128) {
             throw new InvalidInputException("A valid Idempotency-Key is required");
         }
-        String callerId = caller.toString();
+        String callerId = caller;
         String hash = hash(payload);
         int inserted = jdbc.update("""
                 INSERT INTO public.driver_idempotency (caller, operation, idempotency_key, request_hash)
