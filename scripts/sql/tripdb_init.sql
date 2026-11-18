@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS public.trip_operation (
     CONSTRAINT pk_trip_operation PRIMARY KEY (id),
     CONSTRAINT fk_operation_trip FOREIGN KEY (trip_id) REFERENCES public.trip (id) ON DELETE CASCADE,
     CONSTRAINT chk_operation_type CHECK (
-        operation_type IN ('ACCEPT', 'REJECT', 'CANCEL', 'COMPLETE', 'PAYMENT_RETRY')
+        operation_type IN ('ACCEPT', 'REJECT', 'CANCEL', 'COMPLETE', 'PAYMENT_RETRY', 'ARRIVE', 'START', 'CREATE')
     ),
     CONSTRAINT chk_operation_status CHECK (
         status IN ('PENDING', 'SUCCEEDED', 'FAILED')
