@@ -4,6 +4,7 @@ import com.threecats.driverservice.driver.entity.Driver;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     Optional<Driver> findByLicenseNumber(String licenseNumber);
     Optional<Driver> findByDriverId(UUID driverId);
     Optional<Driver> findByUserId(UUID userId);
+    List<Driver> findByApprovalStatusAndAcceptingTripsTrue(com.threecats.driverservice.enums.DriverApprovalStatus approvalStatus);
 
     default Optional<Driver> findByIdOrUserId(UUID id) {
         return findById(id).or(() -> findByDriverId(id));

@@ -1,0 +1,7 @@
+syntax = "proto3";
+package ds03.identity.v1;
+option java_multiple_files = true;
+option java_package = "com.ds03.contracts.identity.v1";
+service IdentityService { rpc GetUser(GetUserRequest) returns (User); }
+message GetUserRequest { string user_id = 1; }
+message User { string id = 1; string display_name = 2; repeated string roles = 3; bool active = 4; }

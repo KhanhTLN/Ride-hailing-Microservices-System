@@ -1,0 +1,29 @@
+syntax = "proto3";
+package ds03.driver.v1;
+option java_multiple_files = true;
+option java_package = "com.ds03.contracts.driver.v1";
+import "ds03/common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+service DriverService {
+  rpc GetDriver(GetDriverRequest) returns (Driver);
+  rpc FindNearbyDrivers(FindNearbyDriversRequest) returns (FindNearbyDriversResponse);
+  rpc ReserveDriver(ReserveDriverRequest) returns (Reservation);
+  rpc ConfirmReservation(ConfirmReservationRequest) returns (Reservation);
+  rpc ReleaseReservation(ReleaseReservationRequest) returns (Reservation);
+  rpc GetReservation(GetReservationRequest) returns (Reservation);
+  rpc GetDriverLocation(GetDriverLocationRequest) returns (DriverLocation);
+}
+enum ReservationStatus { RESERVATION_STATUS_UNSPECIFIED = 0; HELD = 1; CONFIRMED = 2; RELEASED = 3; EXPIRED = 4; }
+enum AccountStatus { ACCOUNT_STATUS_UNSPECIFIED = 0; PENDING = 1; APPROVED = 2; SUSPENDED = 3; }
+message Driver { string id = 1; string user_id = 2; AccountStatus account_status = 3; bool accepting_trips = 4; }
+message GetDriverRequest { string driver_id = 1; }
+message NearbyDriver { string driver_id = 1; string vehicle_id = 2; ds03.common.v1.VehicleType vehicle_type = 3; uint32 distance_m = 4; google.protobuf.Timestamp location_received_at = 5; }
+message FindNearbyDriversRequest { ds03.common.v1.Point pickup = 1; ds03.common.v1.VehicleType vehicle_type = 2; uint32 radius_m = 3; uint32 limit = 4; repeated string excluded_driver_ids = 5; }
+message FindNearbyDriversResponse { repeated NearbyDriver drivers = 1; }
+message ReserveDriverRequest { string driver_id = 1; string trip_id = 2; uint32 hold_seconds = 3; ds03.common.v1.MutationContext mutation = 4; }
+message Reservation { string id = 1; string driver_id = 2; string trip_id = 3; ReservationStatus status = 4; google.protobuf.Timestamp expires_at = 5; google.protobuf.Timestamp updated_at = 6; }
+message ConfirmReservationRequest { string reservation_id = 1; string trip_id = 2; ds03.common.v1.MutationContext mutation = 3; }
+message ReleaseReservationRequest { string reservation_id = 1; string trip_id = 2; string reason = 3; ds03.common.v1.MutationContext mutation = 4; }
+message GetReservationRequest { string reservation_id = 1; }
+message GetDriverLocationRequest { string driver_id = 1; }
+message DriverLocation { string driver_id = 1; ds03.common.v1.Point point = 2; google.protobuf.Timestamp received_at = 3; }
