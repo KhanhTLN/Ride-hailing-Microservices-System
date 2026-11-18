@@ -72,6 +72,14 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<DriverResponse> getAllDrivers() {
+        return driverRepository.findAll().stream()
+                .map(this::mapToDriverResponse)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public DriverResponse approveDriver(UUID driverId, ApprovalRequest request) {
         log.info("Approving driverId: {} with status: {}, reason: {}", driverId, request.getAccountStatus(), request.getReason());
@@ -99,36 +107,41 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public VehicleResponse setActiveVehicle(UUID userId, VehicleInput request) {
-        Driver driver = driverRepository.findByUserId(userId)
+        Driver driver = driverRepository.lockByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
 
-        // Deactivate existing active vehicles
-        List<Vehicle> existingVehicles = vehicleRepository.findByDriverId(driver.getId());
-        for (Vehicle v : existingVehicles) {
-            v.setIsActive(false);
-            vehicleRepository.save(v);
+        String plate = request.getPlateNumber().trim().toUpperCase(java.util.Locale.ROOT);
+        String type = request.getVehicleType().trim().toUpperCase(java.util.Locale.ROOT);
+        if (!type.equals("MOTORBIKE") && !type.equals("CAR")) {
+            throw new InvalidInputException("Unsupported vehicle type");
         }
 
-        Vehicle vehicle = Vehicle.builder()
-                .driverId(driver.getId())
-                .plateNumber(request.getPlateNumber().trim().toUpperCase())
-                .vehicleType(request.getVehicleType().trim().toUpperCase())
-                .brand(request.getBrand().trim())
-                .model(request.getModel().trim())
-                .color(request.getColor().trim())
-                .seatCount(request.getSeatCount())
-                .isActive(true)
-                .createdAt(OffsetDateTime.now())
-                .build();
+        List<Vehicle> existing = vehicleRepository.findByDriverId(driver.getId());
+        Vehicle vehicle = existing.stream()
+                .filter(candidate -> candidate.getPlateNumber().trim().equalsIgnoreCase(plate))
+                .findFirst()
+                .orElseGet(() -> Vehicle.builder().driverId(driver.getId()).build());
 
-        vehicle = vehicleRepository.save(vehicle);
+        existing.stream()
+                .filter(candidate -> candidate != vehicle && Boolean.TRUE.equals(candidate.getIsActive()))
+                .forEach(candidate -> candidate.setIsActive(false));
+        vehicleRepository.flush();
+
+        vehicle.setPlateNumber(plate);
+        vehicle.setVehicleType(type);
+        vehicle.setBrand(request.getBrand().trim());
+        vehicle.setModel(request.getModel().trim());
+        vehicle.setColor(request.getColor().trim());
+        vehicle.setSeatCount(request.getSeatCount());
+        vehicle.setIsActive(true);
+        Vehicle savedVehicle = vehicleRepository.save(vehicle);
 
         // Sync to driver table legacy vehicle fields
         driver.setVehiclePlate(vehicle.getPlateNumber());
         driver.setVehicleModel(vehicle.getModel());
         driverRepository.save(driver);
 
-        return mapToVehicleResponse(vehicle);
+        return mapToVehicleResponse(savedVehicle);
     }
 
     @Override
@@ -149,7 +162,7 @@ public class DriverServiceImpl implements DriverService {
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
 
         if (Boolean.TRUE.equals(request.getAcceptingTrips())) {
-            // CONTRACT rule: Bật chỉ được khi APPROVED và có xe active
+            // CONTRACT rule: Báº­t chá»‰ Ä‘Æ°á»£c khi APPROVED vÃ  cÃ³ xe active
             if (driver.getApprovalStatus() != DriverApprovalStatus.APPROVED) {
                 throw new InvalidInputException("Driver must be APPROVED before accepting trips");
             }
@@ -207,7 +220,7 @@ public class DriverServiceImpl implements DriverService {
         Driver driver = driverRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
 
-        // CONTRACT rule: Location session cũ và seq thấp không ghi đè vị trí mới
+        // CONTRACT rule: Location session cÅ© vÃ  seq tháº¥p khÃ´ng ghi Ä‘Ã¨ vá»‹ trÃ­ má»›i
         if (driver.getCurrentSessionId() != null && driver.getCurrentSessionId().equals(request.getSessionId())) {
             if (driver.getCurrentSequenceNumber() != null && request.getSequenceNumber() <= driver.getCurrentSequenceNumber()) {
                 throw new InvalidInputException("Sequence number must be greater than current sequence number (" + driver.getCurrentSequenceNumber() + ")");
@@ -258,13 +271,13 @@ public class DriverServiceImpl implements DriverService {
         log.info("Registering driver (legacy): username={}, gplx={}", request.getUsername(), request.getLicenseNumber());
 
         if (driverRepository.existsByLicenseNumber(request.getLicenseNumber())) {
-            throw new ResourceAlreadyExistException("Số giấy phép lái xe đã được đăng ký!");
+            throw new ResourceAlreadyExistException("Sá»‘ giáº¥y phÃ©p lÃ¡i xe Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½!");
         }
         if (driverRepository.existsByIdentityCard(request.getIdentityCard())) {
-            throw new ResourceAlreadyExistException("Số căn cước công dân đã được đăng ký!");
+            throw new ResourceAlreadyExistException("Sá»‘ cÄƒn cÆ°á»›c cÃ´ng dÃ¢n Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½!");
         }
         if (driverRepository.existsByVehiclePlate(request.getVehiclePlate())) {
-            throw new ResourceAlreadyExistException("Biển số xe đã được đăng ký trên hệ thống!");
+            throw new ResourceAlreadyExistException("Biá»ƒn sá»‘ xe Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½ trÃªn há»‡ thá»‘ng!");
         }
 
         UserProtoResponse userProto = userGrpcClient.registerDriverUser(
@@ -297,7 +310,7 @@ public class DriverServiceImpl implements DriverService {
         } catch (Exception ex) {
             log.error("Failed to save driver. Rolling back user...", ex);
             userGrpcClient.rollbackUser(userId.toString());
-            throw new RuntimeException("Đăng ký tài xế thất bại, hệ thống đã hoàn tác tạo tài khoản.", ex);
+            throw new RuntimeException("ÄÄƒng kÃ½ tÃ i xáº¿ tháº¥t báº¡i, há»‡ thá»‘ng Ä‘Ã£ hoÃ n tÃ¡c táº¡o tÃ i khoáº£n.", ex);
         }
 
         return mapToDriverResponse(driver);
@@ -306,7 +319,7 @@ public class DriverServiceImpl implements DriverService {
     @Override
     public DriverResponse getDriverProfile(UUID userId) {
         Driver driver = driverRepository.findByIdOrUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ tài xế với ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("KhÃ´ng tÃ¬m tháº¥y há»“ sÆ¡ tÃ i xáº¿ vá»›i ID: " + userId));
 
         return mapToDriverResponse(driver);
     }

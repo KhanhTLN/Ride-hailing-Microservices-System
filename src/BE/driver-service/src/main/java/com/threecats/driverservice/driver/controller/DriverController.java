@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -51,6 +52,11 @@ public class DriverController {
         UUID userId = getAuthenticatedUserId(authentication);
         DriverResponse response = driverService.getMyDriver(userId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/api/v1/admin/drivers")
+    public ResponseEntity<List<DriverResponse>> getAllDrivers() {
+        return ResponseEntity.ok(driverService.getAllDrivers());
     }
 
     @PatchMapping("/api/v1/admin/drivers/{driver_id}/status")

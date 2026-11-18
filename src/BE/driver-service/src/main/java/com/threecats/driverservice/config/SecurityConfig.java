@@ -32,6 +32,8 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/internal/driver/health/**").permitAll()
                         .requestMatchers("/api/drivers/**").permitAll() // legacy endpoints
+                        .requestMatchers("/api/v1/admin/drivers/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/drivers/me/**").hasRole("DRIVER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
