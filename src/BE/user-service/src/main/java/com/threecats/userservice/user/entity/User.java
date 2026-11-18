@@ -3,7 +3,6 @@ package com.threecats.userservice.user.entity;
 import com.threecats.userservice.enums.AccountStatus;
 import com.threecats.userservice.enums.Role;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Pattern;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLDelete;
@@ -19,10 +18,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name="user")
-// 1. Ghi đè lệnh DELETE mặc định của Hibernate
+@Table(name = "\"user\"")
 @SQLDelete(sql = "UPDATE \"user\" SET deleted_at = NOW(), status = 'INACTIVE' WHERE id = ?")
-// 2. Tự động lọc bỏ các user đã xóa mềm khi SELECT
 @SQLRestriction("deleted_at IS NULL")
 public class User {
     @Id
@@ -31,6 +28,9 @@ public class User {
 
     private String username;
 
+    @Column(name = "display_name")
+    private String displayName;
+
     private String firstName;
 
     private String lastName;
@@ -38,7 +38,7 @@ public class User {
     @Column(unique = true)
     private String phone;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String email;
 
     @Column(nullable = false)
@@ -59,4 +59,17 @@ public class User {
     private OffsetDateTime updatedAt;
 
     private OffsetDateTime deletedAt;
+
+    public String getDisplayName() {
+        if (displayName != null && !displayName.isBlank()) {
+            return displayName;
+        }
+        if ((firstName != null && !firstName.isBlank()) || (lastName != null && !lastName.isBlank())) {
+            return ((lastName != null ? lastName : "") + " " + (firstName != null ? firstName : "")).trim();
+        }
+        if (username != null && !username.isBlank()) {
+            return username;
+        }
+        return email != null ? email : "";
+    }
 }

@@ -60,7 +60,8 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
 
                         // 2. Các API Public không cần Token
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**", "/api/auth/**").permitAll()
+                        .requestMatchers("/internal/identity/health/**").permitAll()
 
                         // Ví dụ: Nếu API getAllUser() ở đường dẫn /users thì permitAll ở đây:
 //                         .requestMatchers(HttpMethod.GET, "/api/user/**").permitAll()

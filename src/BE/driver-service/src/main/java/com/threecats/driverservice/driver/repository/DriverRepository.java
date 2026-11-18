@@ -13,4 +13,10 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     boolean existsByIdentityCard(String identityCard);
     boolean existsByVehiclePlate(String vehiclePlate);
     Optional<Driver> findByLicenseNumber(String licenseNumber);
+    Optional<Driver> findByDriverId(UUID driverId);
+    Optional<Driver> findByUserId(UUID userId);
+
+    default Optional<Driver> findByIdOrUserId(UUID id) {
+        return findById(id).or(() -> findByDriverId(id));
+    }
 }
