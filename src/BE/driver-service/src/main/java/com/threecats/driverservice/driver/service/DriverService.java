@@ -17,7 +17,7 @@ public interface DriverService {
     VehicleResponse getActiveVehicle(UUID userId);
     AvailabilityResponse setAvailability(UUID userId, AvailabilityInput request);
     LocationSessionResponse startLocationSession(UUID userId);
-    Ack heartbeat(UUID userId);
+    Ack heartbeat(UUID userId, UUID sessionId);
     LocationResponse updateLocation(UUID userId, LocationInput request);
     LocationResponse getMyLocation(UUID userId);
 

@@ -69,6 +69,9 @@ public class Driver {
     @Column(name = "last_location_updated_at")
     private OffsetDateTime lastLocationUpdatedAt;
 
+    @Column(name = "last_location_recorded_at")
+    private OffsetDateTime lastLocationRecordedAt;
+
     @Column(name = "last_seen_at")
     private OffsetDateTime lastSeenAt;
 

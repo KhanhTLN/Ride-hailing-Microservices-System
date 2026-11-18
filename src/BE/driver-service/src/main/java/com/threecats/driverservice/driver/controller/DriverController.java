@@ -102,9 +102,9 @@ public class DriverController {
     }
 
     @PostMapping("/api/v1/drivers/me/heartbeat")
-    public ResponseEntity<Ack> heartbeat(Authentication authentication) {
+    public ResponseEntity<Ack> heartbeat(@Valid @RequestBody HeartbeatInput request, Authentication authentication) {
         UUID userId = getAuthenticatedUserId(authentication);
-        Ack response = driverService.heartbeat(userId);
+        Ack response = driverService.heartbeat(userId, request.sessionId());
         return ResponseEntity.ok(response);
     }
 

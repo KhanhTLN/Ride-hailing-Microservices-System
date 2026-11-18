@@ -186,85 +186,92 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public LocationSessionResponse startLocationSession(UUID userId) {
-        Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
-
+        Driver driver = lockDriver(userId);
         UUID sessionId = UUID.randomUUID();
-        OffsetDateTime startedAt = OffsetDateTime.now();
-
         driver.setCurrentSessionId(sessionId);
-        driver.setCurrentSequenceNumber(0L);
-        driverRepository.save(driver);
-
+        driver.setCurrentSequenceNumber(null);
+        driver.setLatitude(null);
+        driver.setLongitude(null);
+        driver.setLastLocationUpdatedAt(null);
+        driver.setLastLocationRecordedAt(null);
+        driver.setLastSeenAt(null);
         return LocationSessionResponse.builder()
                 .sessionId(sessionId)
-                .startedAt(startedAt)
+                .startedAt(OffsetDateTime.now(java.time.ZoneOffset.UTC))
                 .build();
     }
 
     @Override
     @Transactional
-    public Ack heartbeat(UUID userId) {
-        Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
-
-        driver.setLastSeenAt(OffsetDateTime.now());
-        driverRepository.save(driver);
-
+    public Ack heartbeat(UUID userId, UUID sessionId) {
+        Driver driver = lockDriver(userId);
+        requireSession(driver, sessionId);
+        driver.setLastSeenAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
         return Ack.of(true);
     }
 
     @Override
     @Transactional
     public LocationResponse updateLocation(UUID userId, LocationInput request) {
-        Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
-
-        // CONTRACT rule: Location session cÅ© vÃ  seq tháº¥p khÃ´ng ghi Ä‘Ã¨ vá»‹ trÃ­ má»›i
-        if (driver.getCurrentSessionId() != null && driver.getCurrentSessionId().equals(request.getSessionId())) {
-            if (driver.getCurrentSequenceNumber() != null && request.getSequenceNumber() <= driver.getCurrentSequenceNumber()) {
-                throw new InvalidInputException("Sequence number must be greater than current sequence number (" + driver.getCurrentSequenceNumber() + ")");
+        Driver driver = lockDriver(userId);
+        requireSession(driver, request.getSessionId());
+        Long currentSequence = driver.getCurrentSequenceNumber();
+        OffsetDateTime recordedAt = request.getRecordedAt().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        PointDto point = request.getPoint();
+        if (currentSequence != null && request.getSequenceNumber() <= currentSequence) {
+            if (request.getSequenceNumber().equals(currentSequence)
+                    && point.getLatitude().equals(driver.getLatitude())
+                    && point.getLongitude().equals(driver.getLongitude())
+                    && driver.getLastLocationRecordedAt() != null
+                    && recordedAt.isEqual(driver.getLastLocationRecordedAt())) {
+                return locationResponse(driver);
             }
+            throw new LocationVersionConflict("Location sequence conflicts with the stored update");
         }
 
-        driver.setCurrentSessionId(request.getSessionId());
+        OffsetDateTime now = OffsetDateTime.now(java.time.ZoneOffset.UTC);
+        if (recordedAt.isBefore(now.minusSeconds(60)) || recordedAt.isAfter(now.plusSeconds(60))) {
+            throw new InvalidInputException("recorded_at must be within 60 seconds of server time");
+        }
         driver.setCurrentSequenceNumber(request.getSequenceNumber());
-        driver.setLatitude(request.getPoint().getLatitude());
-        driver.setLongitude(request.getPoint().getLongitude());
-        driver.setLastLocationUpdatedAt(request.getRecordedAt());
-        driver.setLastSeenAt(OffsetDateTime.now());
-
-        driver = driverRepository.save(driver);
-
-        return LocationResponse.builder()
-                .point(request.getPoint())
-                .updatedAt(driver.getLastLocationUpdatedAt())
-                .build();
+        driver.setLatitude(point.getLatitude());
+        driver.setLongitude(point.getLongitude());
+        driver.setLastLocationRecordedAt(recordedAt);
+        driver.setLastLocationUpdatedAt(now.truncatedTo(java.time.temporal.ChronoUnit.MICROS));
+        return locationResponse(driver);
     }
 
     @Override
     public LocationResponse getMyLocation(UUID userId) {
         Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
-
-        if (driver.getLatitude() == null || driver.getLongitude() == null) {
-            throw new ResourceNotFoundException("No location has been reported yet for this driver");
+                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
+        if (driver.getLastLocationRecordedAt() == null) {
+            throw new ResourceNotFoundException("No location has been reported for the current session");
         }
-
-        PointDto point = PointDto.builder()
-                .latitude(driver.getLatitude())
-                .longitude(driver.getLongitude())
-                .build();
-
-        return LocationResponse.builder()
-                .point(point)
-                .updatedAt(driver.getLastLocationUpdatedAt() != null ? driver.getLastLocationUpdatedAt() : OffsetDateTime.now())
-                .build();
+        return locationResponse(driver);
     }
 
-    // =========================================================================
-    // LEGACY METHODS KEPT FOR BACKWARD COMPATIBILITY
-    // =========================================================================
+    private Driver lockDriver(UUID userId) {
+        return driverRepository.lockByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
+    }
+
+    private void requireSession(Driver driver, UUID sessionId) {
+        if (!sessionId.equals(driver.getCurrentSessionId())) {
+            throw new LocationVersionConflict("Location session is no longer current");
+        }
+    }
+
+    private LocationResponse locationResponse(Driver driver) {
+        return LocationResponse.builder()
+                .driverId(driver.getId())
+                .sessionId(driver.getCurrentSessionId())
+                .sequenceNumber(driver.getCurrentSequenceNumber())
+                .point(new PointDto(driver.getLatitude(), driver.getLongitude()))
+                .recordedAt(driver.getLastLocationRecordedAt())
+                .receivedAt(driver.getLastLocationUpdatedAt())
+                .build();
+    }
 
     @Override
     public DriverResponse registerDriver(DriverRegisterRequest request) {
