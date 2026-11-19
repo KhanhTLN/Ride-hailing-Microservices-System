@@ -9,17 +9,22 @@ import com.threecats.common.exception.resource.ResourceNotFoundException;
 import com.threecats.common.exception.validationAndRequest.InvalidInputException;
 import com.threecats.driverservice.driver.repository.DriverRepository;
 import com.threecats.driverservice.driver.service.DriverReservationService;
+import com.threecats.driverservice.driver.service.RedisDriverSearch;
 import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.grpc.server.service.GrpcService;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -30,12 +35,15 @@ public class DriverGrpcEndpoint extends DriverServiceGrpc.DriverServiceImplBase 
 
     private final DriverRepository drivers;
     private final DriverReservationService reservations;
-    private final JdbcTemplate jdbc;
+    private final NamedParameterJdbcTemplate jdbc;
+    private final Optional<RedisDriverSearch> redisSearch;
 
-    public DriverGrpcEndpoint(DriverRepository drivers, DriverReservationService reservations, JdbcTemplate jdbc) {
+    public DriverGrpcEndpoint(DriverRepository drivers, DriverReservationService reservations,
+                              NamedParameterJdbcTemplate jdbc, Optional<RedisDriverSearch> redisSearch) {
         this.drivers = drivers;
         this.reservations = reservations;
         this.jdbc = jdbc;
+        this.redisSearch = redisSearch;
     }
 
     @Override
@@ -78,26 +86,55 @@ public class DriverGrpcEndpoint extends DriverServiceGrpc.DriverServiceImplBase 
             }
             Set<UUID> excluded = new HashSet<>();
             request.getExcludedDriverIdsList().forEach(id -> excluded.add(uuid(id)));
-            var candidates = jdbc.query("""
-                    SELECT d.driver_id, v.id AS vehicle_id, latitude, longitude, last_location_updated_at
-                    FROM public.driver d JOIN public.vehicle v ON v.driver_id = d.driver_id AND v.is_active
-                    WHERE d.approval_status = 'APPROVED' AND d.accepting_trips AND v.vehicle_type = ?
-                      AND d.last_seen_at >= statement_timestamp() - interval '30 seconds'
-                      AND d.last_location_updated_at >= statement_timestamp() - interval '30 seconds'
-                      AND d.latitude IS NOT NULL AND d.longitude IS NOT NULL
-                      AND NOT EXISTS (SELECT 1 FROM public.driver_reservation r WHERE r.driver_id = d.driver_id
-                          AND (r.status = 'CONFIRMED' OR (r.status = 'HELD' AND r.expires_at > statement_timestamp())))
-                    """, (row, index) -> new Candidate(row.getObject("driver_id", UUID.class),
-                    row.getObject("vehicle_id", UUID.class), distance(pickup, row.getDouble("latitude"),
-                    row.getDouble("longitude")), row.getObject("last_location_updated_at", OffsetDateTime.class)), type.name());
+            Map<UUID, RedisDriverSearch.PositionVersion> shortlist = redisSearch
+                    .map(cache -> cache.find(pickup.getLongitude(), pickup.getLatitude(), request.getRadiusM(),
+                            type.name(), excluded)).orElseGet(Map::of);
+            List<Candidate> candidates = shortlist.size() < request.getLimit() ? List.of()
+                    : eligibleCandidates(request, excluded, shortlist);
+            if (candidates.size() < request.getLimit()) {
+                candidates = eligibleCandidates(request, excluded, Map.of());
+                LOG.debug("operation=FindNearbyDrivers source=postgresql correlation_id={}",
+                        DriverGrpcSecurity.CORRELATION.get());
+            } else {
+                LOG.debug("operation=FindNearbyDrivers source=redis correlation_id={}",
+                        DriverGrpcSecurity.CORRELATION.get());
+            }
             return FindNearbyDriversResponse.newBuilder().addAllDrivers(candidates.stream()
-                    .filter(c -> !excluded.contains(c.driver()) && c.distance() <= request.getRadiusM())
-                    .sorted(Comparator.comparingDouble(Candidate::distance).thenComparing(c -> c.driver().toString()))
-                    .limit(request.getLimit()).map(c -> NearbyDriver.newBuilder()
+                    .map(c -> NearbyDriver.newBuilder()
                             .setDriverId(c.driver().toString()).setVehicleId(c.vehicle().toString())
                             .setVehicleType(type).setDistanceM((int) Math.round(c.distance()))
                             .setLocationReceivedAt(timestamp(c.received())).build()).toList()).build();
         });
+    }
+
+    private List<Candidate> eligibleCandidates(FindNearbyDriversRequest request, Set<UUID> excluded,
+                                               Map<UUID, RedisDriverSearch.PositionVersion> shortlist) {
+        String sql = """
+                SELECT d.driver_id, v.id AS vehicle_id, latitude, longitude, last_location_updated_at,
+                       current_session_id, current_sequence_number
+                FROM public.driver d JOIN public.vehicle v ON v.driver_id = d.driver_id AND v.is_active
+                WHERE d.approval_status = 'APPROVED' AND d.accepting_trips AND v.vehicle_type = :type
+                  AND d.last_seen_at >= statement_timestamp() - interval '30 seconds'
+                  AND d.last_location_updated_at >= statement_timestamp() - interval '30 seconds'
+                  AND d.latitude IS NOT NULL AND d.longitude IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM public.driver_reservation r WHERE r.driver_id = d.driver_id
+                      AND (r.status = 'CONFIRMED' OR (r.status = 'HELD' AND r.expires_at > statement_timestamp())))
+                """;
+        Map<String, Object> params = new HashMap<>();
+        params.put("type", request.getVehicleType().name());
+        if (!shortlist.isEmpty()) {
+            sql += " AND d.driver_id IN (:ids)";
+            params.put("ids", shortlist.keySet());
+        }
+        return jdbc.query(sql, params, (row, index) -> new Candidate(
+                row.getObject("driver_id", UUID.class), row.getObject("vehicle_id", UUID.class),
+                distance(request.getPickup(), row.getDouble("latitude"), row.getDouble("longitude")),
+                row.getObject("last_location_updated_at", OffsetDateTime.class),
+                row.getObject("current_session_id", UUID.class), row.getObject("current_sequence_number", Long.class)))
+                .stream().filter(c -> !excluded.contains(c.driver()) && c.distance() <= request.getRadiusM())
+                .filter(c -> shortlist.isEmpty() || c.matches(shortlist.get(c.driver())))
+                .sorted(Comparator.comparingDouble(Candidate::distance).thenComparing(c -> c.driver().toString()))
+                .limit(request.getLimit()).toList();
     }
 
     @Override
@@ -190,5 +227,11 @@ public class DriverGrpcEndpoint extends DriverServiceGrpc.DriverServiceImplBase 
         observer.onError(status.asRuntimeException(trailers));
     }
 
-    private record Candidate(UUID driver, UUID vehicle, double distance, OffsetDateTime received) {}
+    private record Candidate(UUID driver, UUID vehicle, double distance, OffsetDateTime received,
+                             UUID session, Long sequence) {
+        boolean matches(RedisDriverSearch.PositionVersion version) {
+            return version != null && version.session().equals(session)
+                    && sequence != null && sequence == version.sequence();
+        }
+    }
 }

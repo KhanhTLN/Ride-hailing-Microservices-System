@@ -16,6 +16,7 @@ import java.util.List;
 @Component
 @ConditionalOnProperty(name = "driver.presence.redis.enabled", havingValue = "true")
 class RedisDriverPresence {
+    static final String PREFIX = "driver:presence:";
     private static final Logger LOG = LoggerFactory.getLogger(RedisDriverPresence.class);
     private static final Duration TTL = Duration.ofSeconds(30);
     // An older post-commit callback can arrive after a newer heartbeat.
@@ -41,7 +42,7 @@ class RedisDriverPresence {
             return;
         }
         try {
-            redis.execute(STORE_NEWER, List.of("driver:presence:" + heartbeat.driverId()),
+            redis.execute(STORE_NEWER, List.of(PREFIX + heartbeat.driverId()),
                     Long.toString(heartbeat.receivedAt().toEpochMilli()), heartbeat.sessionId().toString(),
                     Long.toString(remainingMillis));
         } catch (DataAccessException ex) {

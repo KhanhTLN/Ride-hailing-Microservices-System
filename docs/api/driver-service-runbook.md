@@ -41,7 +41,9 @@ redis-cli TTL "driver:{geo}:location:<driver-id>"
 redis-cli GEOSEARCH "driver:{geo}:CAR" FROMLONLAT 105.82 21.01 BYRADIUS 500 M WITHDIST
 ```
 
-Chỉ mục GEO có thể còn thành viên sau khi key vị trí hết hạn. Khi dùng Redis cho matching, kiểm tra key vị trí, heartbeat và phiên hiện hành trước khi chọn ứng viên. Tọa độ ngoài phạm vi vĩ độ của Redis GEO vẫn được lưu ở PostgreSQL.
+Khi bật Redis, `FindNearbyDrivers` dùng `GEOSEARCH` để tìm tối đa 200 ứng viên gần nhất. Driver lọc heartbeat và vị trí còn hạn trong cùng phiên, rồi đối chiếu session, sequence, xe và reservation với PostgreSQL. Nếu Redis lỗi, vị trí điểm đón nằm ngoài phạm vi của Redis GEO hoặc danh sách sau lọc chưa đủ số lượng yêu cầu, Driver chạy truy vấn PostgreSQL. Cache đang nạp lại có thể bỏ sót ứng viên gần hơn nếu danh sách cache đã đủ số lượng.
+
+Driver dọn thành viên GEO hết hạn mỗi 5 giây. Bước lọc kiểm tra TTL ngay cả khi worker chưa dọn xong. `ReserveDriver` tiếp tục kiểm tra lại và giữ chỗ trong transaction PostgreSQL.
 
 ## Kịch bản nghiệm thu
 
