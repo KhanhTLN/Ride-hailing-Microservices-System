@@ -98,6 +98,9 @@ public class DriverServiceImpl implements DriverService {
         }
 
         driver.setApprovalStatus(newStatus);
+        if (newStatus != DriverApprovalStatus.APPROVED) {
+            invalidateCachedLocation(driver);
+        }
         if (newStatus == DriverApprovalStatus.SUSPENDED) {
             driver.setAcceptingTrips(false);
             driver.setActivityStatus(DriverActivityStatus.OFFLINE);
@@ -146,6 +149,7 @@ public class DriverServiceImpl implements DriverService {
         driver.setVehicleModel(vehicle.getModel());
         driverRepository.save(driver);
 
+        invalidateCachedLocation(driver);
         return mapToVehicleResponse(savedVehicle);
     }
 
@@ -163,8 +167,7 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public AvailabilityResponse setAvailability(UUID userId, AvailabilityInput request) {
-        Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
+        Driver driver = lockDriver(userId);
 
         if (Boolean.TRUE.equals(request.getAcceptingTrips())) {
             // CONTRACT rule: Báº­t chá»‰ Ä‘Æ°á»£c khi APPROVED vÃ  cÃ³ xe active
@@ -181,6 +184,9 @@ public class DriverServiceImpl implements DriverService {
         driver.setActivityStatus(Boolean.TRUE.equals(request.getAcceptingTrips()) ? DriverActivityStatus.AVAILABLE : DriverActivityStatus.OFFLINE);
 
         driver = driverRepository.save(driver);
+        if (!Boolean.TRUE.equals(driver.getAcceptingTrips())) {
+            invalidateCachedLocation(driver);
+        }
 
         return AvailabilityResponse.builder()
                 .acceptingTrips(driver.getAcceptingTrips())
@@ -200,6 +206,7 @@ public class DriverServiceImpl implements DriverService {
         driver.setLastLocationUpdatedAt(null);
         driver.setLastLocationRecordedAt(null);
         driver.setLastSeenAt(null);
+        invalidateCachedLocation(driver);
         return LocationSessionResponse.builder()
                 .sessionId(sessionId)
                 .startedAt(OffsetDateTime.now(java.time.ZoneOffset.UTC))
@@ -245,7 +252,18 @@ public class DriverServiceImpl implements DriverService {
         driver.setLongitude(point.getLongitude());
         driver.setLastLocationRecordedAt(recordedAt);
         driver.setLastLocationUpdatedAt(now.truncatedTo(java.time.temporal.ChronoUnit.MICROS));
+        if (Boolean.TRUE.equals(driver.getAcceptingTrips()) && driver.getApprovalStatus() == DriverApprovalStatus.APPROVED) {
+            var vehicle = vehicleRepository.findByDriverIdAndIsActiveTrue(driver.getId());
+            var position = vehicle.filter(v -> Math.abs(point.getLatitude()) <= 85.05112878)
+                    .map(v -> new DriverLocationChanged.Position(request.getSessionId(), request.getSequenceNumber(),
+                            v.getVehicleType(), point.getLongitude(), point.getLatitude())).orElse(null);
+            events.publishEvent(new DriverLocationChanged(driver.getId(), now.toInstant(), position));
+        }
         return locationResponse(driver);
+    }
+
+    private void invalidateCachedLocation(Driver driver) {
+        events.publishEvent(new DriverLocationChanged(driver.getId(), java.time.Instant.now(), null));
     }
 
     @Override

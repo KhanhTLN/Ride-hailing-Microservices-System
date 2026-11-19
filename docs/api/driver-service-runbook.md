@@ -34,6 +34,15 @@ curl.exe -i http://localhost:8081/internal/driver/health/ready
 
 PostgreSQL vẫn cung cấp dữ liệu heartbeat cho matching và readiness. Nếu Redis mất kết nối, endpoint vẫn dùng kết quả ghi PostgreSQL và ghi log lỗi cache.
 
+Khi tài xế đã duyệt, có xe active và bật nhận chuyến, app gửi `PUT /api/v1/drivers/me/location` mỗi 3–5 giây. Sau khi PostgreSQL commit, Driver lưu vị trí mới trong `driver:{geo}:location:<driver-id>` với TTL 30 giây và cập nhật chỉ mục `driver:{geo}:CAR` hoặc `driver:{geo}:MOTORBIKE`. Gửi lại cùng sequence và payload giữ nguyên TTL. Đổi phiên, tắt nhận chuyến hoặc cập nhật xe sẽ xóa vị trí đã cache.
+
+```powershell
+redis-cli TTL "driver:{geo}:location:<driver-id>"
+redis-cli GEOSEARCH "driver:{geo}:CAR" FROMLONLAT 105.82 21.01 BYRADIUS 500 M WITHDIST
+```
+
+Chỉ mục GEO có thể còn thành viên sau khi key vị trí hết hạn. Khi dùng Redis cho matching, kiểm tra key vị trí, heartbeat và phiên hiện hành trước khi chọn ứng viên. Tọa độ ngoài phạm vi vĩ độ của Redis GEO vẫn được lưu ở PostgreSQL.
+
 ## Kịch bản nghiệm thu
 
 1. Tạo và duyệt hồ sơ, đặt xe active, bật nhận chuyến. Mở phiên vị trí, gửi heartbeat và cập nhật vị trí. Gửi `Idempotency-Key` cho các mutation mà OpenAPI yêu cầu.
