@@ -28,6 +28,12 @@ curl.exe -i http://localhost:8081/internal/driver/health/live
 curl.exe -i http://localhost:8081/internal/driver/health/ready
 ```
 
+## Heartbeat qua Redis
+
+Đặt `DRIVER_REDIS_ENABLED=true` và `DRIVER_REDIS_URL` để bật cache heartbeat. Gửi `session_id` hiện hành đến `POST /api/v1/drivers/me/heartbeat` mỗi 10 giây. Driver ghi key `driver:presence:{driver_id}` sau khi commit PostgreSQL và đặt hạn 30 giây tính từ thời điểm nhận. Sau một heartbeat hợp lệ, dùng `redis-cli TTL "driver:presence:<driver-id>"` để kiểm tra TTL. Khi ngừng gửi heartbeat, TTL sẽ về `-2` sau khi key hết hạn.
+
+PostgreSQL vẫn cung cấp dữ liệu heartbeat cho matching và readiness. Nếu Redis mất kết nối, endpoint vẫn dùng kết quả ghi PostgreSQL và ghi log lỗi cache.
+
 ## Kịch bản nghiệm thu
 
 1. Tạo và duyệt hồ sơ, đặt xe active, bật nhận chuyến. Mở phiên vị trí, gửi heartbeat và cập nhật vị trí. Gửi `Idempotency-Key` cho các mutation mà OpenAPI yêu cầu.

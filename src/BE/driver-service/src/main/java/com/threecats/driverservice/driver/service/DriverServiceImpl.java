@@ -18,6 +18,7 @@ import com.threecats.driverservice.grpc.UserGrpcClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
@@ -33,6 +34,7 @@ public class DriverServiceImpl implements DriverService {
     private final VehicleRepository vehicleRepository;
     private final UserGrpcClient userGrpcClient;
     private final DriverReservationService reservations;
+    private final ApplicationEventPublisher events;
 
     // =========================================================================
     // DS03 API CONTRACT v1.0.0 METHODS
@@ -209,7 +211,9 @@ public class DriverServiceImpl implements DriverService {
     public Ack heartbeat(UUID userId, UUID sessionId) {
         Driver driver = lockDriver(userId);
         requireSession(driver, sessionId);
-        driver.setLastSeenAt(OffsetDateTime.now(java.time.ZoneOffset.UTC));
+        OffsetDateTime receivedAt = OffsetDateTime.now(java.time.ZoneOffset.UTC);
+        driver.setLastSeenAt(receivedAt);
+        events.publishEvent(new DriverHeartbeatAccepted(driver.getId(), sessionId, receivedAt.toInstant()));
         return Ack.of(true);
     }
 
