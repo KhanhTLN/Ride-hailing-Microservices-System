@@ -6,6 +6,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -32,6 +34,7 @@ public class IdempotencyRecord {
     @Column(name = "response_status", nullable = false)
     private Integer responseStatus;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "response_body", columnDefinition = "jsonb")
     private String responseBody;
 
