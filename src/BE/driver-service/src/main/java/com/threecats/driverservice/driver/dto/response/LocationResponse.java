@@ -1,11 +1,11 @@
 package com.threecats.driverservice.driver.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.threecats.driverservice.driver.dto.PointDto;
 import lombok.*;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -16,7 +16,18 @@ public class LocationResponse {
 
     private PointDto point;
 
-    @JsonProperty("updated_at")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
-    private OffsetDateTime updatedAt;
+    @JsonProperty("driver_id")
+    private UUID driverId;
+
+    @JsonProperty("session_id")
+    private UUID sessionId;
+
+    @JsonProperty("sequence_number")
+    private Long sequenceNumber;
+
+    @JsonProperty("recorded_at")
+    private OffsetDateTime recordedAt;
+
+    @JsonProperty("received_at")
+    private OffsetDateTime receivedAt;
 }

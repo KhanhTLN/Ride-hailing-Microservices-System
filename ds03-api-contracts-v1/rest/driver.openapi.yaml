@@ -196,6 +196,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/v1/admin/drivers:
+    get:
+      operationId: getAllDrivers
+      tags:
+      - driver
+      summary: List all driver profiles
+      x-owner-service: driver
+      security: []
+      responses:
+        '200':
+          description: Driver profiles. Returns an empty array when there are no drivers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Driver'
   /api/v1/admin/drivers/{driver_id}/status:
     patch:
       operationId: approveDriver

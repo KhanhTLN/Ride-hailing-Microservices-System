@@ -18,6 +18,7 @@ import com.threecats.driverservice.grpc.UserGrpcClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
@@ -32,6 +33,8 @@ public class DriverServiceImpl implements DriverService {
     private final DriverRepository driverRepository;
     private final VehicleRepository vehicleRepository;
     private final UserGrpcClient userGrpcClient;
+    private final DriverReservationService reservations;
+    private final ApplicationEventPublisher events;
 
     // =========================================================================
     // DS03 API CONTRACT v1.0.0 METHODS
@@ -72,6 +75,14 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<DriverResponse> getAllDrivers() {
+        return driverRepository.findAll().stream()
+                .map(this::mapToDriverResponse)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public DriverResponse approveDriver(UUID driverId, ApprovalRequest request) {
         log.info("Approving driverId: {} with status: {}, reason: {}", driverId, request.getAccountStatus(), request.getReason());
@@ -87,6 +98,9 @@ public class DriverServiceImpl implements DriverService {
         }
 
         driver.setApprovalStatus(newStatus);
+        if (newStatus != DriverApprovalStatus.APPROVED) {
+            invalidateCachedLocation(driver);
+        }
         if (newStatus == DriverApprovalStatus.SUSPENDED) {
             driver.setAcceptingTrips(false);
             driver.setActivityStatus(DriverActivityStatus.OFFLINE);
@@ -99,36 +113,44 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public VehicleResponse setActiveVehicle(UUID userId, VehicleInput request) {
-        Driver driver = driverRepository.findByUserId(userId)
+        Driver driver = driverRepository.lockByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
 
-        // Deactivate existing active vehicles
-        List<Vehicle> existingVehicles = vehicleRepository.findByDriverId(driver.getId());
-        for (Vehicle v : existingVehicles) {
-            v.setIsActive(false);
-            vehicleRepository.save(v);
+        reservations.ensureVehicleCanChange(driver.getId());
+
+        String plate = request.getPlateNumber().trim().toUpperCase(java.util.Locale.ROOT);
+        String type = request.getVehicleType().trim().toUpperCase(java.util.Locale.ROOT);
+        if (!type.equals("MOTORBIKE") && !type.equals("CAR")) {
+            throw new InvalidInputException("Unsupported vehicle type");
         }
 
-        Vehicle vehicle = Vehicle.builder()
-                .driverId(driver.getId())
-                .plateNumber(request.getPlateNumber().trim().toUpperCase())
-                .vehicleType(request.getVehicleType().trim().toUpperCase())
-                .brand(request.getBrand().trim())
-                .model(request.getModel().trim())
-                .color(request.getColor().trim())
-                .seatCount(request.getSeatCount())
-                .isActive(true)
-                .createdAt(OffsetDateTime.now())
-                .build();
+        List<Vehicle> existing = vehicleRepository.findByDriverId(driver.getId());
+        Vehicle vehicle = existing.stream()
+                .filter(candidate -> candidate.getPlateNumber().trim().equalsIgnoreCase(plate))
+                .findFirst()
+                .orElseGet(() -> Vehicle.builder().driverId(driver.getId()).build());
 
-        vehicle = vehicleRepository.save(vehicle);
+        existing.stream()
+                .filter(candidate -> candidate != vehicle && Boolean.TRUE.equals(candidate.getIsActive()))
+                .forEach(candidate -> candidate.setIsActive(false));
+        vehicleRepository.flush();
+
+        vehicle.setPlateNumber(plate);
+        vehicle.setVehicleType(type);
+        vehicle.setBrand(request.getBrand().trim());
+        vehicle.setModel(request.getModel().trim());
+        vehicle.setColor(request.getColor().trim());
+        vehicle.setSeatCount(request.getSeatCount());
+        vehicle.setIsActive(true);
+        Vehicle savedVehicle = vehicleRepository.save(vehicle);
 
         // Sync to driver table legacy vehicle fields
         driver.setVehiclePlate(vehicle.getPlateNumber());
         driver.setVehicleModel(vehicle.getModel());
         driverRepository.save(driver);
 
-        return mapToVehicleResponse(vehicle);
+        invalidateCachedLocation(driver);
+        return mapToVehicleResponse(savedVehicle);
     }
 
     @Override
@@ -145,11 +167,10 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public AvailabilityResponse setAvailability(UUID userId, AvailabilityInput request) {
-        Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
+        Driver driver = lockDriver(userId);
 
         if (Boolean.TRUE.equals(request.getAcceptingTrips())) {
-            // CONTRACT rule: Bật chỉ được khi APPROVED và có xe active
+            // CONTRACT rule: Báº­t chá»‰ Ä‘Æ°á»£c khi APPROVED vÃ  cÃ³ xe active
             if (driver.getApprovalStatus() != DriverApprovalStatus.APPROVED) {
                 throw new InvalidInputException("Driver must be APPROVED before accepting trips");
             }
@@ -163,6 +184,9 @@ public class DriverServiceImpl implements DriverService {
         driver.setActivityStatus(Boolean.TRUE.equals(request.getAcceptingTrips()) ? DriverActivityStatus.AVAILABLE : DriverActivityStatus.OFFLINE);
 
         driver = driverRepository.save(driver);
+        if (!Boolean.TRUE.equals(driver.getAcceptingTrips())) {
+            invalidateCachedLocation(driver);
+        }
 
         return AvailabilityResponse.builder()
                 .acceptingTrips(driver.getAcceptingTrips())
@@ -173,98 +197,119 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional
     public LocationSessionResponse startLocationSession(UUID userId) {
-        Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
-
+        Driver driver = lockDriver(userId);
         UUID sessionId = UUID.randomUUID();
-        OffsetDateTime startedAt = OffsetDateTime.now();
-
         driver.setCurrentSessionId(sessionId);
-        driver.setCurrentSequenceNumber(0L);
-        driverRepository.save(driver);
-
+        driver.setCurrentSequenceNumber(null);
+        driver.setLatitude(null);
+        driver.setLongitude(null);
+        driver.setLastLocationUpdatedAt(null);
+        driver.setLastLocationRecordedAt(null);
+        driver.setLastSeenAt(null);
+        invalidateCachedLocation(driver);
         return LocationSessionResponse.builder()
                 .sessionId(sessionId)
-                .startedAt(startedAt)
+                .startedAt(OffsetDateTime.now(java.time.ZoneOffset.UTC))
                 .build();
     }
 
     @Override
     @Transactional
-    public Ack heartbeat(UUID userId) {
-        Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
-
-        driver.setLastSeenAt(OffsetDateTime.now());
-        driverRepository.save(driver);
-
+    public Ack heartbeat(UUID userId, UUID sessionId) {
+        Driver driver = lockDriver(userId);
+        requireSession(driver, sessionId);
+        OffsetDateTime receivedAt = OffsetDateTime.now(java.time.ZoneOffset.UTC);
+        driver.setLastSeenAt(receivedAt);
+        events.publishEvent(new DriverHeartbeatAccepted(driver.getId(), sessionId, receivedAt.toInstant()));
         return Ack.of(true);
     }
 
     @Override
     @Transactional
     public LocationResponse updateLocation(UUID userId, LocationInput request) {
-        Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
-
-        // CONTRACT rule: Location session cũ và seq thấp không ghi đè vị trí mới
-        if (driver.getCurrentSessionId() != null && driver.getCurrentSessionId().equals(request.getSessionId())) {
-            if (driver.getCurrentSequenceNumber() != null && request.getSequenceNumber() <= driver.getCurrentSequenceNumber()) {
-                throw new InvalidInputException("Sequence number must be greater than current sequence number (" + driver.getCurrentSequenceNumber() + ")");
+        Driver driver = lockDriver(userId);
+        requireSession(driver, request.getSessionId());
+        Long currentSequence = driver.getCurrentSequenceNumber();
+        OffsetDateTime recordedAt = request.getRecordedAt().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        PointDto point = request.getPoint();
+        if (currentSequence != null && request.getSequenceNumber() <= currentSequence) {
+            if (request.getSequenceNumber().equals(currentSequence)
+                    && point.getLatitude().equals(driver.getLatitude())
+                    && point.getLongitude().equals(driver.getLongitude())
+                    && driver.getLastLocationRecordedAt() != null
+                    && recordedAt.isEqual(driver.getLastLocationRecordedAt())) {
+                return locationResponse(driver);
             }
+            throw new LocationVersionConflict("Location sequence conflicts with the stored update");
         }
 
-        driver.setCurrentSessionId(request.getSessionId());
+        OffsetDateTime now = OffsetDateTime.now(java.time.ZoneOffset.UTC);
+        if (recordedAt.isBefore(now.minusSeconds(60)) || recordedAt.isAfter(now.plusSeconds(60))) {
+            throw new InvalidInputException("recorded_at must be within 60 seconds of server time");
+        }
         driver.setCurrentSequenceNumber(request.getSequenceNumber());
-        driver.setLatitude(request.getPoint().getLatitude());
-        driver.setLongitude(request.getPoint().getLongitude());
-        driver.setLastLocationUpdatedAt(request.getRecordedAt());
-        driver.setLastSeenAt(OffsetDateTime.now());
+        driver.setLatitude(point.getLatitude());
+        driver.setLongitude(point.getLongitude());
+        driver.setLastLocationRecordedAt(recordedAt);
+        driver.setLastLocationUpdatedAt(now.truncatedTo(java.time.temporal.ChronoUnit.MICROS));
+        if (Boolean.TRUE.equals(driver.getAcceptingTrips()) && driver.getApprovalStatus() == DriverApprovalStatus.APPROVED) {
+            var vehicle = vehicleRepository.findByDriverIdAndIsActiveTrue(driver.getId());
+            var position = vehicle.filter(v -> Math.abs(point.getLatitude()) <= 85.05112878)
+                    .map(v -> new DriverLocationChanged.Position(request.getSessionId(), request.getSequenceNumber(),
+                            v.getVehicleType(), point.getLongitude(), point.getLatitude())).orElse(null);
+            events.publishEvent(new DriverLocationChanged(driver.getId(), now.toInstant(), position));
+        }
+        return locationResponse(driver);
+    }
 
-        driver = driverRepository.save(driver);
-
-        return LocationResponse.builder()
-                .point(request.getPoint())
-                .updatedAt(driver.getLastLocationUpdatedAt())
-                .build();
+    private void invalidateCachedLocation(Driver driver) {
+        events.publishEvent(new DriverLocationChanged(driver.getId(), java.time.Instant.now(), null));
     }
 
     @Override
     public LocationResponse getMyLocation(UUID userId) {
         Driver driver = driverRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found for user: " + userId));
-
-        if (driver.getLatitude() == null || driver.getLongitude() == null) {
-            throw new ResourceNotFoundException("No location has been reported yet for this driver");
+                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
+        if (driver.getLastLocationRecordedAt() == null) {
+            throw new ResourceNotFoundException("No location has been reported for the current session");
         }
-
-        PointDto point = PointDto.builder()
-                .latitude(driver.getLatitude())
-                .longitude(driver.getLongitude())
-                .build();
-
-        return LocationResponse.builder()
-                .point(point)
-                .updatedAt(driver.getLastLocationUpdatedAt() != null ? driver.getLastLocationUpdatedAt() : OffsetDateTime.now())
-                .build();
+        return locationResponse(driver);
     }
 
-    // =========================================================================
-    // LEGACY METHODS KEPT FOR BACKWARD COMPATIBILITY
-    // =========================================================================
+    private Driver lockDriver(UUID userId) {
+        return driverRepository.lockByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
+    }
+
+    private void requireSession(Driver driver, UUID sessionId) {
+        if (!sessionId.equals(driver.getCurrentSessionId())) {
+            throw new LocationVersionConflict("Location session is no longer current");
+        }
+    }
+
+    private LocationResponse locationResponse(Driver driver) {
+        return LocationResponse.builder()
+                .driverId(driver.getId())
+                .sessionId(driver.getCurrentSessionId())
+                .sequenceNumber(driver.getCurrentSequenceNumber())
+                .point(new PointDto(driver.getLatitude(), driver.getLongitude()))
+                .recordedAt(driver.getLastLocationRecordedAt())
+                .receivedAt(driver.getLastLocationUpdatedAt())
+                .build();
+    }
 
     @Override
     public DriverResponse registerDriver(DriverRegisterRequest request) {
         log.info("Registering driver (legacy): username={}, gplx={}", request.getUsername(), request.getLicenseNumber());
 
         if (driverRepository.existsByLicenseNumber(request.getLicenseNumber())) {
-            throw new ResourceAlreadyExistException("Số giấy phép lái xe đã được đăng ký!");
+            throw new ResourceAlreadyExistException("Sá»‘ giáº¥y phÃ©p lÃ¡i xe Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½!");
         }
         if (driverRepository.existsByIdentityCard(request.getIdentityCard())) {
-            throw new ResourceAlreadyExistException("Số căn cước công dân đã được đăng ký!");
+            throw new ResourceAlreadyExistException("Sá»‘ cÄƒn cÆ°á»›c cÃ´ng dÃ¢n Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½!");
         }
         if (driverRepository.existsByVehiclePlate(request.getVehiclePlate())) {
-            throw new ResourceAlreadyExistException("Biển số xe đã được đăng ký trên hệ thống!");
+            throw new ResourceAlreadyExistException("Biá»ƒn sá»‘ xe Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½ trÃªn há»‡ thá»‘ng!");
         }
 
         UserProtoResponse userProto = userGrpcClient.registerDriverUser(
@@ -297,7 +342,7 @@ public class DriverServiceImpl implements DriverService {
         } catch (Exception ex) {
             log.error("Failed to save driver. Rolling back user...", ex);
             userGrpcClient.rollbackUser(userId.toString());
-            throw new RuntimeException("Đăng ký tài xế thất bại, hệ thống đã hoàn tác tạo tài khoản.", ex);
+            throw new RuntimeException("ÄÄƒng kÃ½ tÃ i xáº¿ tháº¥t báº¡i, há»‡ thá»‘ng Ä‘Ã£ hoÃ n tÃ¡c táº¡o tÃ i khoáº£n.", ex);
         }
 
         return mapToDriverResponse(driver);
@@ -306,7 +351,7 @@ public class DriverServiceImpl implements DriverService {
     @Override
     public DriverResponse getDriverProfile(UUID userId) {
         Driver driver = driverRepository.findByIdOrUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ tài xế với ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("KhÃ´ng tÃ¬m tháº¥y há»“ sÆ¡ tÃ i xáº¿ vá»›i ID: " + userId));
 
         return mapToDriverResponse(driver);
     }

@@ -28,7 +28,7 @@ import java.util.List;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Value("${jwt.secret:9a2f8c3d1e4b7a0f6c8e2d5a8b1c4e7f9a2f8c3d1e4b7a0f6c8e2d5a8b1c4e7f}")
+    @Value("${jwt.secret}")
     private String jwtSecret;
 
     private SecretKey getSigningKey() {
@@ -68,15 +68,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 );
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } else {
-                // Support X-User-Id header for direct service or integration tests
-                String fallbackUserId = request.getHeader("X-User-Id");
-                if (StringUtils.hasText(fallbackUserId)) {
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            fallbackUserId, null, List.of(new SimpleGrantedAuthority("ROLE_DRIVER"), new SimpleGrantedAuthority("ROLE_ADMIN"))
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
             }
         } catch (Exception ex) {
             log.error("Could not set driver authentication in security context: {}", ex.getMessage());

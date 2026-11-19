@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+import os
 import sys
 import time
 
@@ -26,6 +27,7 @@ class DriverClient:
         self.settings = settings
         self.token = ""
         self.expires_at = 0
+        self.token_file = os.getenv("MATCHING_DRIVER_TOKEN_FILE", "")
         if settings.driver_tls:
             roots = Path(settings.driver_ca_file).read_bytes() if settings.driver_ca_file else None
             self.channel = grpc.secure_channel(settings.driver_grpc_target,
@@ -38,7 +40,15 @@ class DriverClient:
 
     def metadata(self, correlation_id):
         values = [("x-correlation-id", correlation_id)]
-        if not self.settings.demo_mode:
+        if self.token_file:
+            try:
+                token = Path(self.token_file).read_text(encoding="utf-8").strip()
+                if not token:
+                    raise ValueError("Empty Driver service token")
+            except (OSError, ValueError) as exc:
+                raise DriverError("SERVICE_TOKEN_UNAVAILABLE") from exc
+            values.append(("authorization", f"Bearer {token}"))
+        elif not self.settings.demo_mode:
             if time.time() >= self.expires_at:
                 try:
                     response = httpx.post(self.settings.user_token_url, json={
