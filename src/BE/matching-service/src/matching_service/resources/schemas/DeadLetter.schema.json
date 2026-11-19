@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DeadLetter",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "original_topic": {
+      "type": "string"
+    },
+    "partition": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "offset": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "consumer_group": {
+      "type": "string"
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "error_code": {
+      "type": "string"
+    },
+    "failed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "original_message": {
+      "type": "object"
+    },
+    "original_bytes_base64": {
+      "type": "string",
+      "contentEncoding": "base64"
+    }
+  },
+  "required": [
+    "original_topic",
+    "partition",
+    "offset",
+    "consumer_group",
+    "attempts",
+    "error_code",
+    "failed_at"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "original_message"
+      ],
+      "not": {
+        "required": [
+          "original_bytes_base64"
+        ]
+      }
+    },
+    {
+      "required": [
+        "original_bytes_base64"
+      ],
+      "not": {
+        "required": [
+          "original_message"
+        ]
+      }
+    }
+  ]
+}

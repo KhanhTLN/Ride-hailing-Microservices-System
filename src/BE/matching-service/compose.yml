@@ -1,0 +1,84 @@
+name: rhds-matching
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: matching
+      POSTGRES_USER: matching
+      POSTGRES_PASSWORD: matching_local_only
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - matching-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matching -d matching"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  kafka:
+    image: apache/kafka:3.9.1
+    ports:
+      - "127.0.0.1:19092:19092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:19092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:9092", "--list"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  topics:
+    image: apache/kafka:3.9.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        for topic in ds03.trip.events.v1 ds03.matching.events.v1 ds03.trip.events.v1.dlq.matching-v1; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$topic" --partitions 3 --replication-factor 1 --config retention.ms=604800000
+        done
+
+  migrate:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://matching:matching_local_only@postgres:5432/matching
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  matching:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://matching:matching_local_only@postgres:5432/matching
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      HTTP_HOST: 0.0.0.0
+      DRIVER_GRPC_ADDRESS: host.docker.internal:9091
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:18084:8084"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      topics:
+        condition: service_completed_successfully
+
+volumes:
+  matching-data:
