@@ -6,7 +6,12 @@ import grpc_tools
 from grpc_tools import protoc
 
 root = Path(__file__).resolve().parents[1]
-contracts = Path(os.environ.get("CONTRACTS_DIR", root.parents[2] / "ds03-api-contracts-v1"))
+contracts_env = os.environ.get("CONTRACTS_DIR")
+contracts = Path(contracts_env) if contracts_env else next(
+    (parent / "ds03-api-contracts-v1" for parent in root.parents
+     if (parent / "ds03-api-contracts-v1").is_dir()),
+    Path("/contracts"),
+)
 output = root / "generated"
 output.mkdir(exist_ok=True)
 proto = contracts / "proto"

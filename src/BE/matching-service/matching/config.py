@@ -9,7 +9,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
     demo_mode: bool = False
     database_url: str = "postgresql+psycopg://matching:matching_demo@localhost:5544/matching_db"
-    contracts_dir: Path = ROOT.parents[2] / "ds03-api-contracts-v1"
+    contracts_dir: Path = next(
+        (parent / "ds03-api-contracts-v1" for parent in ROOT.parents
+         if (parent / "ds03-api-contracts-v1").is_dir()),
+        Path("/contracts"),
+    )
     kafka_bootstrap_servers: str = "localhost:19092"
     kafka_security_protocol: str = "PLAINTEXT"
     kafka_sasl_mechanism: str = "PLAIN"
