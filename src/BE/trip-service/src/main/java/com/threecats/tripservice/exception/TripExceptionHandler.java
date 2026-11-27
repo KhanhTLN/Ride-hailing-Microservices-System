@@ -14,6 +14,16 @@ import java.util.UUID;
 @RestControllerAdvice
 public class TripExceptionHandler {
 
+    @ExceptionHandler({org.springframework.web.bind.MissingRequestHeaderException.class,org.springframework.http.converter.HttpMessageNotReadableException.class,org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<Map<String,Object>> invalidRequest(Exception ex) {
+        return ResponseEntity.status(422).body(Map.of("code","INVALID_ARGUMENT","message","Invalid request headers or body","correlation_id",com.threecats.common.context.CorrelationContext.get(),"retryable",false,"details",Map.of()));
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Map<String,Object>> forbidden(org.springframework.security.access.AccessDeniedException ex) {
+        return ResponseEntity.status(403).body(Map.of("code","FORBIDDEN","message","Caller is not authorized","correlation_id",com.threecats.common.context.CorrelationContext.get(),"retryable",false,"details",Map.of()));
+    }
+
     @ExceptionHandler(TripApiException.class)
     public ResponseEntity<Map<String, Object>> handleTripApiException(TripApiException ex, HttpServletRequest request) {
         String correlationId = request.getHeader("X-Correlation-ID");
@@ -52,7 +62,7 @@ public class TripExceptionHandler {
         body.put("retryable", false);
         body.put("details", details);
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .header("X-Correlation-ID", correlationId)
                 .body(body);
     }
@@ -66,7 +76,7 @@ public class TripExceptionHandler {
 
         Map<String, Object> body = new HashMap<>();
         body.put("code", "INTERNAL_ERROR");
-        body.put("message", ex.getMessage() != null ? ex.getMessage() : "Unexpected internal error");
+        body.put("message", "Unexpected internal error");
         body.put("correlation_id", correlationId);
         body.put("retryable", true);
         body.put("details", Map.of());

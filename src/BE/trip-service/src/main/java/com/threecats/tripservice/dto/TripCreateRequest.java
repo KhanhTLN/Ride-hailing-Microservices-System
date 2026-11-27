@@ -18,5 +18,6 @@ public class TripCreateRequest {
     private UUID quote_id;
 
     @NotNull
+    @jakarta.validation.constraints.Pattern(regexp="SIMULATED")
     private String payment_method; // "SIMULATED"
 }

@@ -25,7 +25,9 @@ public class TripResponse {
     private MoneyDto estimated_fare;
     private MoneyDto final_fare;
     private UUID driver_id;
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private UUID driver_user_id;
+    private UUID reservation_id;
     private UUID attempt_id;
     private Long version;
     private String created_at;

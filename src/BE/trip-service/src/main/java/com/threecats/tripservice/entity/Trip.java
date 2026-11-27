@@ -43,6 +43,14 @@ public class Trip {
     @Column(name = "current_attempt_id", nullable = false)
     private UUID currentAttemptId;
 
+    private UUID reservationId;
+    private OffsetDateTime reservationExpiresAt;
+    private OffsetDateTime searchDeadline;
+    private UUID matchingCorrelationId;
+    private UUID matchingEventId;
+    @Column(columnDefinition="TEXT")
+    @Builder.Default private String excludedDriverIds = "";
+
     @Column(name = "search_budget_seconds", nullable = false)
     @Builder.Default
     private Integer searchBudgetSeconds = 120;

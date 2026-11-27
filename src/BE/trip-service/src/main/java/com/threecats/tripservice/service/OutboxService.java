@@ -20,10 +20,19 @@ public class OutboxService {
 
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @Transactional
     public <T> void recordEvent(String topic, String eventType, UUID aggregateId, int aggregateVersion, String correlationId, T data) {
+        recordEvent(topic,eventType,aggregateId,correlationId,UUID.randomUUID().toString(),data);
+    }
+
+    @Transactional
+    public <T> void recordEvent(String topic,String eventType,UUID aggregateId,String correlationId,String causationId,T data) {
+        long sequence=jdbc.queryForObject("INSERT INTO trip_event_sequence(trip_id,value) VALUES(?,1) ON CONFLICT(trip_id) DO UPDATE SET value=trip_event_sequence.value+1 RETURNING value",Long.class,aggregateId);
+        int aggregateVersion=Math.toIntExact(sequence);
         EventEnvelope<T> envelope = EventEnvelope.create(eventType, aggregateId.toString(), aggregateVersion, correlationId, data);
+        envelope.setCausationId(causationId);
         try {
             String payloadJson = objectMapper.writeValueAsString(envelope);
             OutboxEvent outboxEvent = OutboxEvent.builder()
