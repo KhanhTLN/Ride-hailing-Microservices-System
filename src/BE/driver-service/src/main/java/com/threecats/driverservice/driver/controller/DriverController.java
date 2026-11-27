@@ -147,7 +147,9 @@ public class DriverController {
     }
 
     @GetMapping("/api/drivers/{userId}")
-    public ApiResponse<DriverResponse> getProfileLegacy(@PathVariable UUID userId) {
+    public ApiResponse<DriverResponse> getProfileLegacy(@PathVariable UUID userId, Authentication authentication) {
+        if(!com.threecats.common.security.CurrentUser.hasRole("ADMIN") && !getAuthenticatedUserId(authentication).equals(userId))
+            throw new org.springframework.security.access.AccessDeniedException("Only the driver or admin can read this profile");
         DriverResponse response = driverService.getDriverProfile(userId);
         return ApiResponse.success(response);
     }
