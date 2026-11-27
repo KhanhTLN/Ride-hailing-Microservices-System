@@ -113,7 +113,7 @@ Expiry worker chỉ chuyển HELD quá hạn sang EXPIRED dưới cùng lock; x�
 ## 5. Pricing
 
 POST quotes dùng passenger sub, pickup/dropoff, loại xe; quote immutable, hạn 120s. Lưu pricing_version và inputs.
-Demo: khoảng cách Haversine nhân 1.3 rồi làm tròn lên mét; tốc độ mô phỏng 25 km/h. MOTORBIKE = 10000 + 5000/km; CAR = 20000 + 10000/km; làm tròn lên 1000 VND. Đây là giá giả lập, không phải giá Grab/Uber.
+Khoảng cách và thời gian dự kiến lấy từ tuyến đường OSRM (mét/giây, làm tròn lên), không có dữ liệu giao thông trực tiếp. MOTORBIKE = 10000 + 5000/km; CAR = 20000 + 10000/km; làm tròn lên 1000 VND. Đây là biểu giá demo, không phải giá Grab/Uber. OSRM public dùng graph driving cho cả hai loại xe; cần endpoint với graph xe máy riêng để xét đúng hạn chế xe máy. Quote lưu snapshot immutable; lỗi OSRM trả 429/422/503, không thay bằng khoảng cách giả lập. Các endpoint bản đồ mở rộng được mô tả trong deploy/README.md.
 Trip GetQuote kiểm tra passenger và expires_at tại thời điểm tạo trip. Một quote chỉ tạo một trip (unique quote_id tại Trip).
 CalculateFinalFare v1 trả đúng giá quote đã được Trip chấp nhận; không áp dụng lại hạn quote ở cuối chuyến. Không nhận số tiền từ client.
 Nếu muốn giá theo thời gian/khoảng cách thực tế thì cần contract mới và nguồn đo được xác thực; không tự thêm vào v1.

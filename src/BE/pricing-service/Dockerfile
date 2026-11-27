@@ -23,7 +23,7 @@ COPY common/src common/src
 COPY pricing-service/src pricing-service/src
 
 # 3. Biên dịch và đóng gói chỉ pricing-service và common (bỏ qua unit tests)
-RUN ./mvnw clean package -B -pl :pricing-service -am -DskipTests
+RUN ./mvnw clean package -B -pl :pricing-service -am -Dtest=MapsProviderTest,MapsQuoteTest -Dsurefire.failIfNoSpecifiedTests=false
 
 # 4. Trích xuất thin jar và dependencies bằng Spring Boot tools
 WORKDIR /build/pricing-service

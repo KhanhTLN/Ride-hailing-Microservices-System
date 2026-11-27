@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <base href="/maps/">
+  <title>Ride · Chọn hành trình</title>
+  <link rel="stylesheet" href="./vendor/leaflet.css">
+  <link rel="stylesheet" href="./app.css">
+  <script defer src="./vendor/leaflet.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <aside>
+    <header><span class="brand">ride<span>●</span></span><span class="tag">Chọn hành trình</span></header>
+    <section class="account">
+      <details id="auth-panel" open>
+        <summary id="account-label">Đăng nhập để tìm đường và xem giá</summary>
+        <form id="auth-form">
+          <label>Email<input id="email" type="email" autocomplete="username" required></label>
+          <label>Mật khẩu<input id="password" type="password" autocomplete="current-password" maxlength="128" required></label>
+          <label id="name-label" hidden>Tên hiển thị<input id="display-name" maxlength="100" autocomplete="name"></label>
+          <div class="buttons"><button type="submit" id="auth-submit">Đăng nhập</button><button type="button" class="secondary" id="auth-mode">Tạo tài khoản</button></div>
+        </form>
+      </details>
+      <button id="logout" class="secondary" hidden>Đăng xuất</button>
+      <p id="auth-status" role="status" aria-live="polite" hidden></p>
+    </section>
+    <main>
+      <h1>Bạn muốn đi đâu?</h1>
+      <p class="muted">Nhập điểm đón và điểm đến, rồi chọn địa điểm trong danh sách gợi ý.</p>
+      <section class="point" data-point="pickup">
+        <label for="pickup" class="point-label"><span class="dot pickup"></span> Điểm đón</label>
+        <form class="search-form" data-point="pickup"><input id="pickup" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="pickup-results" placeholder="Nhập địa chỉ hoặc tên điểm đón" maxlength="200" required autocomplete="off"></form>
+        <ul id="pickup-results" class="results" role="listbox" aria-label="Gợi ý điểm đón" hidden></ul>
+        <p id="pickup-hint" class="address-hint" role="status" aria-live="polite">Nhập ít nhất 3 ký tự để tìm địa điểm.</p>
+      </section>
+      <section class="point" data-point="dropoff">
+        <label for="dropoff" class="point-label"><span class="dot dropoff"></span> Điểm đến</label>
+        <form class="search-form" data-point="dropoff"><input id="dropoff" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dropoff-results" placeholder="Nhập địa chỉ hoặc tên điểm đến" maxlength="200" required autocomplete="off"></form>
+        <ul id="dropoff-results" class="results" role="listbox" aria-label="Gợi ý điểm đến" hidden></ul>
+        <p id="dropoff-hint" class="address-hint" role="status" aria-live="polite">Nhập ít nhất 3 ký tự để tìm địa điểm.</p>
+      </section>
+      <label>Phương tiện<select id="vehicle"><option value="MOTORBIKE">Xe máy</option><option value="CAR">Ô tô</option></select></label>
+      <p id="vehicle-note" class="notice">Xe máy đang dùng tuyến đường của mô hình ô tô, chưa xét các hạn chế riêng cho xe máy.</p>
+      <button id="route-button" class="primary" disabled>Xem tuyến đường</button>
+      <section id="journey" hidden>
+        <div class="metrics"><div><span class="muted">Quãng đường</span><strong id="distance"></strong></div><div><span class="muted">Thời gian dự kiến</span><strong id="duration"></strong></div></div>
+        <p class="muted small">Thời gian ước tính chưa tính tình trạng giao thông trực tiếp.</p>
+        <button id="quote-button" class="primary">Lấy giá chuyến đi</button>
+        <div id="quote" hidden><strong id="fare"></strong><p id="expires" class="muted small"></p></div>
+      </section>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <footer>Địa chỉ tìm kiếm được gửi tới Photon; tọa độ tìm đường được gửi tới OSRM. Chỉ nhập địa điểm công cộng khi thử nghiệm.<br>Tìm địa điểm: <a href="https://photon.komoot.io/" target="_blank" rel="noopener">Photon</a> / © OpenStreetMap contributors · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Báo lỗi dữ liệu bản đồ</a></footer>
+  </aside>
+  <div id="map" aria-label="Bản đồ hiển thị hành trình"><p id="map-status" class="map-status" role="status" aria-live="polite" hidden></p></div>
+  <noscript>Vui lòng bật JavaScript để sử dụng bản đồ.</noscript>
+</body>
+</html>

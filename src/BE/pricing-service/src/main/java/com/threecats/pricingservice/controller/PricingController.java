@@ -16,8 +16,10 @@ import java.util.UUID;
 public class PricingController {
 
     private final PricingCalculator pricingCalculator;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
-    public PricingController(PricingCalculator pricingCalculator) {
+    public PricingController(PricingCalculator pricingCalculator,org.springframework.jdbc.core.JdbcTemplate jdbc) {
+        this.jdbc=jdbc;
         this.pricingCalculator = pricingCalculator;
     }
 
@@ -28,11 +30,8 @@ public class PricingController {
             @RequestHeader(value = "X-User-Id", required = false) String passengerIdHeader,
             @Valid @RequestBody QuoteInputRequest request) {
 
-        String passengerId = passengerIdHeader;
-        if (passengerId == null || passengerId.isBlank()) {
-            passengerId = UUID.randomUUID().toString(); // default or demo passenger
-        }
-
+        com.threecats.common.security.CurrentUser.require("PASSENGER");
+        String passengerId=com.threecats.common.security.CurrentUser.id().toString();
         QuoteRecord quoteRecord = pricingCalculator.calculateQuote(request, passengerId, idempotencyKey);
         QuoteResponse response = pricingCalculator.toResponse(quoteRecord);
 
@@ -47,7 +46,8 @@ public class PricingController {
     }
 
     @GetMapping("/internal/pricing/health/ready")
-    public ResponseEntity<Map<String, String>> ready() {
-        return ResponseEntity.ok(Map.of("status", "UP"));
+    public ResponseEntity<Map<String,String>> ready() {
+        try { jdbc.queryForObject("SELECT 1",Integer.class); return ResponseEntity.ok(Map.of("status","UP")); }
+        catch(Exception e) { return ResponseEntity.status(503).body(Map.of("code","DEPENDENCY_UNAVAILABLE")); }
     }
 }
