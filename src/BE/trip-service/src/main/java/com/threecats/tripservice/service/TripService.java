@@ -67,7 +67,8 @@ public class TripService {
             if(trips.existsByPassengerIdAndStatusNotIn(passenger,TERMINAL)) throw error(409,"ACTIVE_TRIP_EXISTS","Passenger already has an active trip");
             if(trips.findByQuoteId(request.getQuote_id()).isPresent()) throw error(409,"QUOTE_ALREADY_USED","Quote already used");
             Trip t=Trip.builder().id(UUID.randomUUID()).passengerId(passenger).quoteId(request.getQuote_id()).status(TripStatus.SEARCHING)
-                .currentAttemptId(UUID.randomUUID()).searchDeadline(OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(120)).searchBudgetSeconds(120)
+                .currentAttemptId(UUID.randomUUID())
+                .searchDeadline(OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(Trip.DEFAULT_SEARCH_BUDGET_SECONDS))
                 .pickupLatitude(quote.getPickup().getLatitude()).pickupLongitude(quote.getPickup().getLongitude()).pickupAddress(quote.getPickup().getAddress())
                 .dropoffLatitude(quote.getDropoff().getLatitude()).dropoffLongitude(quote.getDropoff().getLongitude()).dropoffAddress(quote.getDropoff().getAddress())
                 .vehicleType(quote.getVehicleType().name()).fareAmount(new BigDecimal(quote.getFare().getAmount())).fareCurrency(quote.getFare().getCurrency())

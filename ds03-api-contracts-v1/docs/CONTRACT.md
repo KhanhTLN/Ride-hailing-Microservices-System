@@ -139,12 +139,12 @@ Một operation mới chỉ thành công khi các điều kiện dưới đây t
 
 ### Tạo và Matching
 
-Trip lưu SEARCHING, attempt UUID, tổng search budget 120s, outbox TripRequested. Khách nhận 201 ngay.
-Matching dedup event_id và attempt_id, persist deadline/progress; tìm ứng viên trong 5km, tối đa 20; reserve tuần tự. DriverReserved chỉ phát sau khi reserve commit, cùng local transaction ghi kết quả/outbox.
+Trip lưu SEARCHING, attempt UUID, tổng search budget 600 giây và outbox TripRequested. Khách nhận 201 ngay.
+Matching dedup event_id và attempt_id, lưu deadline và tiến trình, tìm tối đa 20 ứng viên trong bán kính 5 km và reserve tuần tự. Nếu danh sách rỗng hoặc đã thử hết ứng viên, Matching lưu thời điểm chạy tiếp và gọi FindNearbyDrivers lại sau 5 giây trong cùng attempt. DriverReserved chỉ phát sau khi reserve commit, cùng local transaction ghi kết quả và outbox.
 Nếu Matching chết sau Driver commit trước ghi local, replay cùng ReserveDriver key phải phục hồi được reservation cũ.
 Trip nhận DriverReserved chỉ chấp nhận attempt hiện tại khi SEARCHING. Dùng GetDriver lấy user_id phục vụ phân quyền/notification. Phát DriverOffered sau commit.
 Trip nhận kết quả cũ/đến muộn thì không đổi state, tạo cleanup task ReleaseReservation và retry tới terminal.
-MatchingFailed cho attempt hiện tại kết thúc NO_DRIVER, trừ khi Trip còn chiến lược tìm lại trong cùng tổng budget.
+Khi hết deadline mà chưa giữ được tài xế, Matching có thể phát MatchingFailed với reason DEADLINE_EXCEEDED cho attempt hiện tại. Trip chuyển sang NO_DRIVER khi xử lý thất bại của attempt hiện tại hoặc khi worker xác nhận hết deadline.
 Tài xế reject/hết hạn: giải phóng/reconcile trước khi phát TripRequested với attempt_id mới; thêm tài xế từ chối vào excluded list. Hết budget => NO_DRIVER + TripUnmatched.
 
 ### Accept / cancel compensation

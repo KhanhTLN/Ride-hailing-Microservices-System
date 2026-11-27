@@ -7,6 +7,7 @@ ALTER TABLE trip
  ADD COLUMN IF NOT EXISTS matching_event_id UUID,
  ADD COLUMN IF NOT EXISTS excluded_driver_ids TEXT NOT NULL DEFAULT '';
 UPDATE trip SET search_deadline=created_at+search_budget_seconds*INTERVAL '1 second' WHERE search_deadline IS NULL;
+ALTER TABLE trip ALTER COLUMN search_budget_seconds SET DEFAULT 600;
 CREATE TABLE IF NOT EXISTS trip_event_sequence(trip_id UUID PRIMARY KEY, value BIGINT NOT NULL);
 INSERT INTO trip_event_sequence SELECT aggregate_id,GREATEST(MAX(aggregate_version),0) FROM outbox_event GROUP BY aggregate_id
 ON CONFLICT(trip_id) DO UPDATE SET value=GREATEST(trip_event_sequence.value,excluded.value);

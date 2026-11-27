@@ -25,7 +25,8 @@ def main():
                          "auto.offset.reset": "earliest", "enable.auto.commit": False})
     consumer.subscribe([settings.matching_topic])
     trip, attempt, correlation = (str(uuid4()) for _ in range(3))
-    deadline = datetime.now(timezone.utc) + timedelta(seconds=-1 if args.scenario == "expired" else 120)
+    budget_seconds = {"expired": -1, "no-driver": 12}.get(args.scenario, 120)
+    deadline = datetime.now(timezone.utc) + timedelta(seconds=budget_seconds)
     event = {"event_id": str(uuid4()), "event_type": "TripRequested", "schema_version": 1,
         "producer": "trip", "occurred_at": iso_now(), "correlation_id": correlation,
         "causation_id": str(uuid4()), "aggregate_id": trip, "aggregate_version": 1,
@@ -64,6 +65,8 @@ def main():
             expected = "MatchingFailed" if args.scenario in ("no-driver", "expired") else "DriverReserved"
             if result["event_type"] != expected:
                 raise SystemExit(f"Unexpected result; expected {expected}")
+            if expected == "MatchingFailed" and result["data"]["reason"] != "DEADLINE_EXCEEDED":
+                raise SystemExit("Expected Matching to keep searching until the deadline")
             if args.scenario == "cancel-after":
                 send(cancel)
                 print("Cancellation sent. Inspect matching_attempts=CANCELLED and mock reservation=RELEASED.")

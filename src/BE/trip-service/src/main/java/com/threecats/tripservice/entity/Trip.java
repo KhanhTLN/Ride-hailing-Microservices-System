@@ -20,6 +20,8 @@ import java.util.UUID;
 @Builder
 public class Trip {
 
+    public static final int DEFAULT_SEARCH_BUDGET_SECONDS = 600;
+
     @Id
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
@@ -53,7 +55,7 @@ public class Trip {
 
     @Column(name = "search_budget_seconds", nullable = false)
     @Builder.Default
-    private Integer searchBudgetSeconds = 120;
+    private Integer searchBudgetSeconds = DEFAULT_SEARCH_BUDGET_SECONDS;
 
     @Column(name = "pickup_latitude", nullable = false)
     private Double pickupLatitude;

@@ -19,6 +19,7 @@ D1, D2 = str(uuid4()), str(uuid4())
 class FakeDriver:
     def __init__(self):
         self.candidates = [D1, D2]
+        self.find_calls = 0
         self.reservations = {}
         self.reserve_calls = []
         self.release_calls = []
@@ -27,6 +28,7 @@ class FakeDriver:
         self.fail_release = False
 
     def find(self, data, correlation):
+        self.find_calls += 1
         return self.candidates
 
     def reserve(self, driver, trip, key, correlation):
@@ -136,12 +138,79 @@ def test_cancel_before_request_tombstone(setup):
     assert not events(w)
 
 
-def test_no_driver(setup):
+def test_empty_search_resumes_after_restart_when_driver_comes_online(setup):
     w, e = setup, request()
     w.driver.candidates = []
     ingest(w, e)
     advance(w)
-    assert events(w)[0]["data"]["reason"] == "NO_DRIVER"
+    attempt = state(w, e)
+    assert attempt.state == "SEARCHING"
+    assert attempt.next_run > time.time()
+    assert w.driver.find_calls == 1
+    assert not events(w)
+
+    restarted = Workflow(Database(str(w.db.engine.url)), w.contracts, w.driver, w.settings)
+    w.driver.candidates = [D1]
+    assert not restarted.step()
+    make_due(restarted)
+    advance(restarted)
+    assert state(restarted, e).state == "RESERVED"
+    assert w.driver.find_calls == 2
+    output, = events(restarted)
+    assert output["event_type"] == "DriverReserved"
+    assert output["data"]["attempt_id"] == e["data"]["attempt_id"]
+
+
+def test_cancel_between_search_rounds_stops_without_another_rpc(setup):
+    w, e = setup, request()
+    w.driver.candidates = []
+    ingest(w, e)
+    advance(w)
+    ingest(w, cancellation(e), offset=1)
+    advance(w)
+    assert state(w, e).state == "CANCELLED"
+    assert w.driver.find_calls == 1
+    assert not events(w)
+
+
+def test_all_candidates_unavailable_are_queried_again_with_new_reserve_key(setup):
+    w, e = setup, request()
+    w.driver.candidates = [D1]
+    w.driver.reject.add(D1)
+    ingest(w, e)
+    advance(w)
+    assert state(w, e).state == "SEARCHING"
+    assert w.driver.find_calls == 1
+    assert not events(w)
+
+    w.driver.reject.clear()
+    make_due(w)
+    advance(w)
+    assert state(w, e).state == "RESERVED"
+    assert w.driver.find_calls == 2
+    first, second = w.driver.reserve_calls
+    assert first[:2] == second[:2]
+    assert first[2] != second[2]
+    assert [event["event_type"] for event in events(w)] == ["DriverReserved"]
+
+
+def test_search_waits_until_deadline_then_fails_once(setup, monkeypatch):
+    w, e = setup, request()
+    w.driver.candidates = []
+    ingest(w, e)
+    deadline = state(w, e).deadline
+    monkeypatch.setattr(time, "time", lambda: deadline - 2)
+    advance(w)
+    assert state(w, e).next_run == deadline
+    assert w.driver.find_calls == 1
+    assert not events(w)
+
+    monkeypatch.setattr(time, "time", lambda: deadline)
+    advance(w)
+    assert state(w, e).state == "FAILED"
+    assert w.driver.find_calls == 1
+    output, = events(w)
+    assert output["data"]["reason"] == "DEADLINE_EXCEEDED"
 
 
 def test_unavailable_first_candidate_uses_second(setup):
@@ -245,7 +314,7 @@ def test_invalid_kafka_trip_key_rejected(setup):
 
 def test_producer_sequence_increases_across_attempts(setup):
     w, e = setup, request()
-    w.driver.candidates = []
+    e["data"]["search_deadline"] = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
     ingest(w, e)
     advance(w)
     second = deepcopy(e)

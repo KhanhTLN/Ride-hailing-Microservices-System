@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.trip (
     quote_id UUID NOT NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'SEARCHING',
     current_attempt_id UUID NOT NULL,
-    search_budget_seconds INT NOT NULL DEFAULT 120,
+    search_budget_seconds INT NOT NULL DEFAULT 600,
     
     -- Tọa độ và địa chỉ đón / trả
     pickup_latitude DOUBLE PRECISION NOT NULL,

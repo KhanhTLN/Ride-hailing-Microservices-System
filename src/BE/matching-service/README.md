@@ -155,7 +155,7 @@ Thử tiếp từng trường hợp, chờ reservation cũ hết 30 giây nếu 
 |---|---|
 | `success` | Có DriverReserved và một reservation HELD |
 | `duplicate` | Gửi cùng event hai lần; DB chỉ có một kết quả nghiệp vụ |
-| `no-driver` | Loại trừ cả hai tài xế mock; nhận MatchingFailed/NO_DRIVER |
+| `no-driver` | Loại trừ cả hai tài xế mock; tìm lại đến hạn 12 giây của fixture rồi nhận `MatchingFailed/DEADLINE_EXCEEDED` |
 | `cancel-before` | Hủy đến trước yêu cầu; DB attempt CANCELLED, không reserve |
 | `cancel-after` | Nhận kết quả rồi hủy; DB attempt CANCELLED, mock reservation RELEASED |
 | `expired` | Không reserve; nhận MatchingFailed/DEADLINE_EXCEEDED |
