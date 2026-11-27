@@ -14,6 +14,7 @@ from .driver import DriverError
 
 log = logging.getLogger(__name__)
 RETRY_DELAYS = (1, 5, 15, 30, 60)
+SEARCH_INTERVAL_SECONDS = 5
 
 
 def mutation_key(attempt_id, action):
@@ -155,9 +156,13 @@ class Workflow:
                 current = session.get(Attempt, attempt.attempt_id)
                 current.retries += 1
                 current.last_error = code
-                current.next_run = time.time() + RETRY_DELAYS[min(current.retries - 1, 4)]
-                if current.state == "SEARCHING" and current.deadline <= time.time():
-                    self.fail(session, current, "DEPENDENCY_UNAVAILABLE")
+                now = time.time()
+                current.next_run = now + RETRY_DELAYS[min(current.retries - 1, 4)]
+                if current.state == "SEARCHING":
+                    if current.deadline <= now:
+                        self.fail(session, current, "DEPENDENCY_UNAVAILABLE")
+                    else:
+                        current.next_run = min(current.next_run, current.deadline)
                 # The provider's generic idempotency guarantee is >=7 days.
                 # Stop automated replay outside that known window for unresolved reserves.
                 if (current.state == "RESERVING" and current.reserve_started and
@@ -180,10 +185,15 @@ class Workflow:
             if current.cancel_requested:
                 current.state = "CANCELLED"
             elif current.candidate_index >= len(current.candidates):
-                self.fail(session, current, "NO_DRIVER")
+                # Re-query Driver after a quiet interval so newly available drivers can join.
+                current.candidates = None
+                current.candidate_index = 0
+                current.next_run = min(time.time() + SEARCH_INTERVAL_SECONDS, current.deadline)
             else:
                 current.driver_id = current.candidates[current.candidate_index]
-                current.reserve_key = mutation_key(current.attempt_id, f"reserve/{current.driver_id}")
+                # A new reservation attempt gets a new key, even for the same driver.
+                # The RESERVING step persists it before the call and reuses it on retry.
+                current.reserve_key = str(uuid4())
                 current.reserve_started = time.time()
                 current.state = "RESERVING"
                 current.next_run = 0
@@ -210,6 +220,7 @@ class Workflow:
             current = session.get(Attempt, attempt.attempt_id)
             current.reservation, current.retries, current.next_run = result, 0, 0
             if result["status"] in ("EXPIRED", "RELEASED"):
+                current.reservation = None
                 current.candidate_index += 1
                 current.state = "CANCELLED" if current.cancel_requested else "SEARCHING"
             else:

@@ -21,6 +21,11 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler({org.springframework.web.bind.MissingRequestHeaderException.class,org.springframework.http.converter.HttpMessageNotReadableException.class,org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ErrorResponse> invalidRequest(Exception ex) {
+        return ResponseEntity.status(422).headers(createHeaders()).body(ErrorResponse.of("INVALID_ARGUMENT","Invalid request headers or body",CorrelationContext.get(),false,Map.of()));
+    }
+
     private HttpHeaders createHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.set(CorrelationContext.CORRELATION_HEADER, CorrelationContext.get());

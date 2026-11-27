@@ -16,6 +16,10 @@ import java.util.UUID;
 @Repository
 public interface TripRepository extends JpaRepository<Trip, UUID> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from Trip t where t.id=:id")
+    Optional<Trip> lock(@Param("id") UUID id);
+
     Optional<Trip> findByQuoteId(UUID quoteId);
 
     @Query("SELECT t FROM Trip t WHERE t.passengerId = :passengerId AND t.status NOT IN :terminalStatuses")

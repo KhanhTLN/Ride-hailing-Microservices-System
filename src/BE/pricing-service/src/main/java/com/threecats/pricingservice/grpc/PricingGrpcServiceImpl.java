@@ -112,6 +112,9 @@ public class PricingGrpcServiceImpl extends PricingServiceGrpc.PricingServiceImp
 
         QuoteRecord quoteRecord = quoteOpt.get();
 
+        if (!quoteRecord.getPassengerId().equals(request.getPassengerId())) {
+            responseObserver.onError(Status.PERMISSION_DENIED.withDescription("Quote owner mismatch").asRuntimeException()); return;
+        }
         // Contract v1 rule: final fare equals accepted quote fare, even after quote expiry.
         FinalFare finalFare = FinalFare.newBuilder()
                 .setTripId(tripId)

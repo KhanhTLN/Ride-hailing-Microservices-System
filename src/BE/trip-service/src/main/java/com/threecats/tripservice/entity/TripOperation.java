@@ -38,6 +38,17 @@ public class TripOperation {
     @Column(name = "idempotency_key", length = 128)
     private String idempotencyKey;
 
+    private UUID callerId;
+    private Long expectedVersion;
+    private UUID reservationId;
+    private UUID driverId;
+    private UUID attemptId;
+    private UUID correlationId;
+    @Column(length=300) private String reason;
+    @Builder.Default private String step = "START";
+    @Builder.Default private Integer retries = 0;
+    private OffsetDateTime nextRetryAt;
+
     @Column(name = "error_code", length = 50)
     private String errorCode;
 

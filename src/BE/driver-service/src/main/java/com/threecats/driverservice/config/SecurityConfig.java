@@ -26,12 +26,14 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(e -> e.authenticationEntryPoint((req,res,ex) -> com.threecats.common.security.UserJwtFilter.failure(res,401,"UNAUTHENTICATED"))
+                    .accessDeniedHandler((req,res,ex) -> com.threecats.common.security.UserJwtFilter.failure(res,403,"FORBIDDEN")))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/internal/driver/health/**").permitAll()
-                        .requestMatchers("/api/drivers/**").permitAll() // legacy endpoints
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,"/api/drivers/register").permitAll()
                         .requestMatchers("/api/v1/admin/drivers/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/drivers/me/**").hasRole("DRIVER")
                         .anyRequest().authenticated()

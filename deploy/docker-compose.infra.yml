@@ -24,6 +24,24 @@ services:
       timeout: 5s
       retries: 5
 
+  rhds-matching-db: 
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: matching
+      POSTGRES_PASSWORD: matching_demo
+      POSTGRES_DB: matching_db
+    ports:
+      - "127.0.0.1:5544:5432"
+    volumes:
+      - matching_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matching -d matching_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rhds-
+
   # =========================================================================
   # 2. APACHE KAFKA (CHẾ ĐỘ KRAFT - KHÔNG DÙNG ZOOKEEPER)
   # Cổng máy host: 9092

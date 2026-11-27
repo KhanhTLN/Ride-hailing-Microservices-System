@@ -23,6 +23,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Override
     public UserResponse getCurrentUser(String identifier) {
@@ -38,7 +39,7 @@ public class UserServiceImpl implements UserService {
         }
 
         if (user == null) {
-            user = userRepository.findByEmail(identifier)
+            user = userRepository.findByEmailIgnoreCase(identifier)
                     .or(() -> userRepository.findByUsername(identifier))
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with identifier: " + identifier));
         }
@@ -59,7 +60,7 @@ public class UserServiceImpl implements UserService {
         if (userRepository.findByPhone(req.getPhone()).isPresent()) {
             throw new ResourceAlreadyExistException("Phone already exists");
         }
-        if (userRepository.findByEmail(req.getEmail()).isPresent()) {
+        if (userRepository.findByEmailIgnoreCase(req.getEmail()).isPresent()) {
             throw new ResourceAlreadyExistException("Email already exists");
         }
 
@@ -67,9 +68,9 @@ public class UserServiceImpl implements UserService {
                 .firstName(req.getFirstName())
                 .lastName(req.getLastName())
                 .displayName((req.getLastName() + " " + req.getFirstName()).trim())
-                .email(req.getEmail())
+                .email(req.getEmail().trim().toLowerCase(java.util.Locale.ROOT))
                 .phone(req.getPhone())
-                .password(req.getPassword())
+                .password(passwordEncoder.encode(req.getPassword()))
                 .role(Role.PASSENGER)
                 .status(AccountStatus.ACTIVE)
                 .build();
@@ -80,6 +81,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse updateUser(UUID id, UpdateUserProfileRequest request) {
+        if(request.getEmail()!=null) request.setEmail(request.getEmail().trim().toLowerCase(java.util.Locale.ROOT));
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -109,7 +111,7 @@ public class UserServiceImpl implements UserService {
 
     private void validateUniqueFields(User currentUser, UpdateUserProfileRequest request) {
         if (request.getEmail() != null && !request.getEmail().equalsIgnoreCase(currentUser.getEmail())) {
-            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            if (userRepository.findByEmailIgnoreCase(request.getEmail()).isPresent()) {
                 throw new ResourceAlreadyExistException("Email already exists");
             }
         }

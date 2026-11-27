@@ -20,7 +20,7 @@ import java.util.UUID;
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret:9a2f8c3d1e4b7a0f6c8e2d5a8b1c4e7f9a2f8c3d1e4b7a0f6c8e2d5a8b1c4e7f}")
+    @Value("${jwt.secret}")
     private String jwtSecret;
 
     @Value("${jwt.access-token-expiration:900000}")
@@ -44,6 +44,7 @@ public class JwtTokenProvider {
                 .id(UUID.randomUUID().toString())
                 .issuer("identity-service")
                 .audience().add("ds03-api").and()
+                .claim("token_use", "access")
                 .claim("roles", roles)
                 .claim("role", role != null ? role.name() : "PASSENGER")
                 .issuedAt(Date.from(now))
@@ -60,6 +61,7 @@ public class JwtTokenProvider {
                 .subject(id.toString())
                 .id(UUID.randomUUID().toString())
                 .issuer("identity-service")
+                .claim("token_use", "refresh")
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .signWith(getSigningKey())
@@ -87,9 +89,23 @@ public class JwtTokenProvider {
     public Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
+                .requireIssuer("identity-service")
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    public Claims parseRefreshClaims(String token) {
+        Claims claims=parseClaims(token);
+        if (!"refresh".equals(claims.get("token_use"))) throw new IllegalArgumentException("Refresh token required");
+        return claims;
+    }
+
+    public boolean validateAccessToken(String token) {
+        try {
+            Claims c=parseClaims(token);
+            return "access".equals(c.get("token_use")) && c.getAudience()!=null && c.getAudience().contains("ds03-api");
+        } catch (RuntimeException e) { return false; }
     }
 
     public boolean validateToken(String token) {

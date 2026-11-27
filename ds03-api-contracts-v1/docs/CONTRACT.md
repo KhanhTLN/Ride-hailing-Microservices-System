@@ -113,7 +113,7 @@ Expiry worker chỉ chuyển HELD quá hạn sang EXPIRED dưới cùng lock; x�
 ## 5. Pricing
 
 POST quotes dùng passenger sub, pickup/dropoff, loại xe; quote immutable, hạn 120s. Lưu pricing_version và inputs.
-Demo: khoảng cách Haversine nhân 1.3 rồi làm tròn lên mét; tốc độ mô phỏng 25 km/h. MOTORBIKE = 10000 + 5000/km; CAR = 20000 + 10000/km; làm tròn lên 1000 VND. Đây là giá giả lập, không phải giá Grab/Uber.
+Khoảng cách và thời gian dự kiến lấy từ tuyến đường OSRM (mét/giây, làm tròn lên), không có dữ liệu giao thông trực tiếp. MOTORBIKE = 10000 + 5000/km; CAR = 20000 + 10000/km; làm tròn lên 1000 VND. Đây là biểu giá demo, không phải giá Grab/Uber. OSRM public dùng graph driving cho cả hai loại xe; cần endpoint với graph xe máy riêng để xét đúng hạn chế xe máy. Quote lưu snapshot immutable; lỗi OSRM trả 429/422/503, không thay bằng khoảng cách giả lập. Các endpoint bản đồ mở rộng được mô tả trong deploy/README.md.
 Trip GetQuote kiểm tra passenger và expires_at tại thời điểm tạo trip. Một quote chỉ tạo một trip (unique quote_id tại Trip).
 CalculateFinalFare v1 trả đúng giá quote đã được Trip chấp nhận; không áp dụng lại hạn quote ở cuối chuyến. Không nhận số tiền từ client.
 Nếu muốn giá theo thời gian/khoảng cách thực tế thì cần contract mới và nguồn đo được xác thực; không tự thêm vào v1.
@@ -139,12 +139,12 @@ Một operation mới chỉ thành công khi các điều kiện dưới đây t
 
 ### Tạo và Matching
 
-Trip lưu SEARCHING, attempt UUID, tổng search budget 120s, outbox TripRequested. Khách nhận 201 ngay.
-Matching dedup event_id và attempt_id, persist deadline/progress; tìm ứng viên trong 5km, tối đa 20; reserve tuần tự. DriverReserved chỉ phát sau khi reserve commit, cùng local transaction ghi kết quả/outbox.
+Trip lưu SEARCHING, attempt UUID, tổng search budget 600 giây và outbox TripRequested. Khách nhận 201 ngay.
+Matching dedup event_id và attempt_id, lưu deadline và tiến trình, tìm tối đa 20 ứng viên trong bán kính 5 km và reserve tuần tự. Nếu danh sách rỗng hoặc đã thử hết ứng viên, Matching lưu thời điểm chạy tiếp và gọi FindNearbyDrivers lại sau 5 giây trong cùng attempt. DriverReserved chỉ phát sau khi reserve commit, cùng local transaction ghi kết quả và outbox.
 Nếu Matching chết sau Driver commit trước ghi local, replay cùng ReserveDriver key phải phục hồi được reservation cũ.
 Trip nhận DriverReserved chỉ chấp nhận attempt hiện tại khi SEARCHING. Dùng GetDriver lấy user_id phục vụ phân quyền/notification. Phát DriverOffered sau commit.
 Trip nhận kết quả cũ/đến muộn thì không đổi state, tạo cleanup task ReleaseReservation và retry tới terminal.
-MatchingFailed cho attempt hiện tại kết thúc NO_DRIVER, trừ khi Trip còn chiến lược tìm lại trong cùng tổng budget.
+Khi hết deadline mà chưa giữ được tài xế, Matching có thể phát MatchingFailed với reason DEADLINE_EXCEEDED cho attempt hiện tại. Trip chuyển sang NO_DRIVER khi xử lý thất bại của attempt hiện tại hoặc khi worker xác nhận hết deadline.
 Tài xế reject/hết hạn: giải phóng/reconcile trước khi phát TripRequested với attempt_id mới; thêm tài xế từ chối vào excluded list. Hết budget => NO_DRIVER + TripUnmatched.
 
 ### Accept / cancel compensation

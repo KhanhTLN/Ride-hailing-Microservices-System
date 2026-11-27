@@ -33,6 +33,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,false);
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
@@ -47,16 +48,23 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public CommonErrorHandler errorHandler(KafkaTemplate<String, String> kafkaTemplate) {
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
-                (record, ex) -> {
-                    String targetTopic = record.topic() + ".dlq.trip-matching-v1";
-                    if (record.topic().contains("payment")) {
-                        targetTopic = record.topic() + ".dlq.trip-payment-v1";
-                    }
-                    return new TopicPartition(targetTopic, record.partition());
-                });
-
-        return new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 3));
+    public CommonErrorHandler errorHandler(KafkaTemplate<String, String> kafkaTemplate,com.fasterxml.jackson.databind.ObjectMapper mapper) {
+        org.springframework.kafka.listener.ConsumerRecordRecoverer recoverer=(record,ex) -> {
+            String group=record.topic().contains("payment") ? "trip-payment-v1" : "trip-matching-v1";
+            Map<String,Object> dead=new java.util.LinkedHashMap<>();
+            dead.put("original_topic",record.topic()); dead.put("partition",record.partition()); dead.put("offset",Long.toString(record.offset()));
+            dead.put("consumer_group",group); dead.put("attempts",6); dead.put("error_code","PROCESSING_FAILED"); dead.put("failed_at",java.time.Instant.now().toString());
+            String raw=String.valueOf(record.value());
+            try { var value=mapper.readTree(raw); if(!value.isObject()) throw new IllegalArgumentException(); dead.put("original_message",value); }
+            catch(Exception ignored) { dead.put("original_bytes_base64",java.util.Base64.getEncoder().encodeToString(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8))); }
+            try { kafkaTemplate.send(record.topic()+".dlq."+group,record.partition(),String.valueOf(record.key()),mapper.writeValueAsString(dead)).get(5,java.util.concurrent.TimeUnit.SECONDS); }
+            catch(Exception e) { throw new IllegalStateException("DLQ delivery not acknowledged",e); }
+        };
+        org.springframework.util.backoff.BackOff backoff=() -> new org.springframework.util.backoff.BackOffExecution() {
+            private int index;
+            private final long[] delays={1000,5000,15000,30000,60000};
+            public long nextBackOff() { return index<delays.length ? delays[index++] : STOP; }
+        };
+        return new DefaultErrorHandler(recoverer,backoff);
     }
 }

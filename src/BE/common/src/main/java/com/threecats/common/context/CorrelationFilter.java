@@ -17,6 +17,17 @@ public class CorrelationFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         if (request instanceof HttpServletRequest httpRequest && response instanceof HttpServletResponse httpResponse) {
             String correlationId = httpRequest.getHeader(CorrelationContext.CORRELATION_HEADER);
+            if(correlationId!=null && !correlationId.isBlank()) {
+                try {
+                    if(!java.util.UUID.fromString(correlationId).toString().equals(correlationId)) throw new IllegalArgumentException();
+                } catch(IllegalArgumentException e) {
+                    CorrelationContext.set(null);
+                    httpResponse.setHeader(CorrelationContext.CORRELATION_HEADER,CorrelationContext.get());
+                    try { com.threecats.common.security.UserJwtFilter.failure(httpResponse,422,"INVALID_ARGUMENT"); }
+                    finally { CorrelationContext.clear(); }
+                    return;
+                }
+            }
             CorrelationContext.set(correlationId);
             httpResponse.setHeader(CorrelationContext.CORRELATION_HEADER, CorrelationContext.get());
         }
