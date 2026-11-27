@@ -26,6 +26,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.Locale;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -36,6 +38,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshSessionService refreshSessions;
 
     @Override
     public UserResponse register(RegisterRequest request) {
@@ -45,7 +48,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String email = request.getEmail().trim().toLowerCase();
-        if (userRepository.findByEmail(email).isPresent()) {
+        if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
             throw new ResourceAlreadyExistException("Email is already in use");
         }
 
@@ -68,7 +71,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public TokenPair login(LoginRequest request) {
-        String identifier = request.getIdentifier();
+        String input = request.getIdentifier();
+        String identifier = input == null ? null : (input.contains("@") ? input.trim().toLowerCase(Locale.ROOT) : input.trim());
         if (identifier == null || identifier.isBlank()) {
             throw new InvalidInputException("Email or username is required");
         }
@@ -78,12 +82,12 @@ public class AuthServiceImpl implements AuthService {
                 new UsernamePasswordAuthenticationToken(identifier, request.getPassword())
         );
 
-        User user = userRepository.findByEmail(identifier)
+        User user = userRepository.findByEmailIgnoreCase(identifier)
                 .or(() -> userRepository.findByUsername(identifier))
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with identifier: " + identifier));
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getRole());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+        String refreshToken = refreshSessions.issue(user.getId());
 
         return TokenPair.builder()
                 .accessToken(accessToken)
@@ -95,40 +99,25 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional(noRollbackFor=UnauthorizedException.class)
     public TokenPair refreshToken(RefreshRequest request) {
-        String token = request.getRefreshToken();
-        if (!jwtTokenProvider.validateToken(token)) {
-            throw new UnauthorizedException("Invalid or expired refresh token");
-        }
-
-        String userIdStr = jwtTokenProvider.getUserIdFromJwt(token);
-        User user = userRepository.findById(UUID.fromString(userIdStr))
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getRole());
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
-
-        return TokenPair.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(newRefreshToken)
-                .tokenType("Bearer")
-                .expiresIn(jwtTokenProvider.getAccessTokenExpirationInSeconds())
-                .user(UserResponse.mapFromEntity(user))
-                .build();
+        RefreshSessionService.Rotation rotated=refreshSessions.rotate(request.getRefreshToken());
+        User user=userRepository.findById(rotated.userId()).orElseThrow(() -> new UnauthorizedException("User not found"));
+        if (user.getStatus()!=AccountStatus.ACTIVE) throw new UnauthorizedException("User account is inactive");
+        return TokenPair.builder().accessToken(jwtTokenProvider.generateAccessToken(user.getId(),user.getRole()))
+                .refreshToken(rotated.token()).tokenType("Bearer")
+                .expiresIn(jwtTokenProvider.getAccessTokenExpirationInSeconds()).user(UserResponse.mapFromEntity(user)).build();
     }
 
     @Override
-    public void logout(RefreshRequest request) {
-        // Contract: Revoke refresh token; repeated revocation succeeds
-        log.info("Logout request received for refresh token");
-    }
+    public void logout(RefreshRequest request) { refreshSessions.logout(request.getRefreshToken()); }
 
     @Override
     public UserResponse registerUserWithRole(registerUserRequest request, String role) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResourceAlreadyExistException("Username has already in use");
         }
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+        if (userRepository.findByEmailIgnoreCase(request.getEmail()).isPresent()) {
             throw new ResourceAlreadyExistException("Email has already in use");
         }
         if (userRepository.findByPhone(request.getPhone()).isPresent()) {
@@ -157,7 +146,7 @@ public class AuthServiceImpl implements AuthService {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new ResourceAlreadyExistException("Username has already in use");
         }
-        if (userRepository.findByEmail(email).isPresent()) {
+        if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
             throw new ResourceAlreadyExistException("Email has already in use");
         }
         if (userRepository.findByPhone(phone).isPresent()) {

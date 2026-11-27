@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.threecats.userservice.auth.service.RegistrationIdempotency registration;
 
     // =========================================================================
     // DS03 API CONTRACT v1.0.0 ENDPOINTS (/api/v1/auth)
@@ -31,7 +32,7 @@ public class AuthController {
     public ResponseEntity<UserResponse> register(
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody RegisterRequest request) {
-        UserResponse user = authService.register(request);
+        UserResponse user = registration.execute(idempotencyKey,request,() -> authService.register(request));
         return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
 

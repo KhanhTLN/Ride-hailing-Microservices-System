@@ -13,7 +13,7 @@ COPY common/src common/src
 COPY user-service/src user-service/src
 
 RUN --mount=type=cache,target=/root/.m2,sharing=locked \
-    mvn -B -ntp -pl user-service -am -DskipTests package \
+    mvn -B -ntp -pl user-service -am -Dtest=JwtTokenProviderTest,CorrelationFilterTest -Dsurefire.failIfNoSpecifiedTests=false package \
     && cp user-service/target/user-service-*.jar /app.jar
 
 FROM eclipse-temurin:25-jdk-alpine-3.23 AS java-runtime

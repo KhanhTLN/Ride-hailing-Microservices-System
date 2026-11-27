@@ -22,6 +22,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findById(UUID.fromString(id))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + id));
 
+        if (user.getStatus()!=com.threecats.userservice.enums.AccountStatus.ACTIVE) throw new UsernameNotFoundException("User account is inactive");
         String roleName = user.getRole() != null ? user.getRole().name() : "PASSENGER";
         return new org.springframework.security.core.userdetails.User(
                 user.getId().toString(),
@@ -32,10 +33,12 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(identifier)
-                .or(() -> userRepository.findByUsername(identifier))
+        String normalized=identifier.contains("@") ? identifier.trim().toLowerCase(java.util.Locale.ROOT) : identifier.trim();
+        User user = userRepository.findByEmailIgnoreCase(normalized)
+                .or(() -> userRepository.findByUsername(normalized))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with identifier: " + identifier));
 
+        if (user.getStatus()!=com.threecats.userservice.enums.AccountStatus.ACTIVE) throw new UsernameNotFoundException("User account is inactive");
         String roleName = user.getRole() != null ? user.getRole().name() : "PASSENGER";
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),

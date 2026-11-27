@@ -21,6 +21,11 @@ public class UserController {
 
     private final UserService userService;
 
+    private void requireOwner(UUID id) {
+        if(!com.threecats.common.security.CurrentUser.hasRole("ADMIN") && !com.threecats.common.security.CurrentUser.id().equals(id))
+            throw new org.springframework.security.access.AccessDeniedException("Only the owner or admin can access this user");
+    }
+
     // =========================================================================
     // DS03 API CONTRACT v1.0.0 ENDPOINTS
     // =========================================================================
@@ -34,6 +39,7 @@ public class UserController {
 
     @GetMapping("/api/v1/users/{id}")
     public ResponseEntity<UserResponse> getUserByIdContract(@PathVariable UUID id) {
+        requireOwner(id);
         return ResponseEntity.ok(userService.findUserById(id));
     }
 
@@ -43,11 +49,13 @@ public class UserController {
 
     @GetMapping("/api/user/{id}")
     public ApiResponse<?> getUserById(@PathVariable UUID id) {
+        requireOwner(id);
         return ApiResponse.success(userService.findUserById(id));
     }
 
     @PostMapping("/api/user/create")
     public ApiResponse<?> createUser(@Valid @RequestBody UserRequest req) {
+        com.threecats.common.security.CurrentUser.require("ADMIN");
         return ApiResponse.success(userService.createUser(req));
     }
 
@@ -55,17 +63,20 @@ public class UserController {
     public ApiResponse<?> updateUser(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateUserProfileRequest request) {
+        requireOwner(id);
         return ApiResponse.success(userService.updateUser(id, request));
     }
 
     @DeleteMapping("/api/user/{id}")
     public ApiResponse<?> deleteUser(@PathVariable UUID id) {
+        requireOwner(id);
         userService.deleteUser(id);
         return ApiResponse.success("Delete user " + id.toString() + " successfully");
     }
 
     @GetMapping("/api/user")
     public ApiResponse<List<UserResponse>> getAllUser() {
+        com.threecats.common.security.CurrentUser.require("ADMIN");
         return ApiResponse.success(userService.getAllUsers());
     }
 }

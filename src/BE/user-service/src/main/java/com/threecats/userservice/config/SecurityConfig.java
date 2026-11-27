@@ -52,6 +52,8 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(e -> e.authenticationEntryPoint((req,res,ex) -> com.threecats.common.security.UserJwtFilter.failure(res,401,"UNAUTHENTICATED"))
+                    .accessDeniedHandler((req,res,ex) -> com.threecats.common.security.UserJwtFilter.failure(res,403,"FORBIDDEN")))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
